@@ -11,6 +11,99 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /projects:
+    get:
+      operationId: listProjects
+      responses:
+        "200":
+          description: Projects in the signed-in user's room
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Project" } }
+    post:
+      operationId: createProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+  /projects/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getProject
+      responses:
+        "200":
+          description: Project
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+    patch:
+      operationId: updateProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProjectInput" }
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+    delete:
+      operationId: deleteProject
+      responses:
+        "204": { description: Deleted }
+  /projects/{id}/status:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: string } }
+    put:
+      operationId: transitionProject
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TransitionInput" }
+      responses:
+        "200":
+          description: Status changed with signed audit event
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Project" }
+  /dashboard:
+    get:
+      operationId: getDashboard
+      responses:
+        "200":
+          description: Live room totals
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Dashboard" }
+  /audit:
+    get:
+      operationId: listActivity
+      responses:
+        "200":
+          description: Recent signed activity
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/Activity" } }
+  /system/status:
+    get:
+      operationId: getSystemStatus
+      responses:
+        "200":
+          description: Actual runtime readiness, not simulated agent connections
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SystemStatus" }
   /healthz:
     get:
       operationId: healthCheck
@@ -26,6 +119,74 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    ProjectStatus:
+      type: string
+      enum: [draft, approved_plan, awaiting_review, merged, paused, rejected]
+    ProjectInput:
+      type: object
+      required: [name, description, client_name, budget, actual_cost, priority, project_type]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 160 }
+        description: { type: string, maxLength: 5000 }
+        client_name: { type: string, maxLength: 160 }
+        budget: { type: number, minimum: 0, maximum: 1000000000 }
+        actual_cost: { type: number, minimum: 0, maximum: 1000000000 }
+        priority: { type: integer, minimum: 1, maximum: 10 }
+        project_type: { type: string, enum: [whatsapp_bot, crm, analytics, email_campaign, ecommerce, other] }
+    Project:
+      allOf:
+        - $ref: "#/components/schemas/ProjectInput"
+        - type: object
+          required: [project_id, status, created_at, updated_at, rejection_reason]
+          properties:
+            project_id: { type: string }
+            status: { $ref: "#/components/schemas/ProjectStatus" }
+            created_at: { type: string }
+            updated_at: { type: string }
+            rejection_reason: { type: string }
+    TransitionInput:
+      type: object
+      required: [status, expected_status]
+      properties:
+        status: { $ref: "#/components/schemas/ProjectStatus" }
+        expected_status: { $ref: "#/components/schemas/ProjectStatus" }
+        reason: { type: string, maxLength: 2000 }
+    Dashboard:
+      type: object
+      required: [total, active, pending, completed, budget, spent]
+      properties:
+        total: { type: integer }
+        active: { type: integer }
+        pending: { type: integer }
+        completed: { type: integer }
+        budget: { type: number }
+        spent: { type: number }
+    Activity:
+      type: object
+      required: [id, action, project_id, project_name, description, created_at, verified]
+      properties:
+        id: { type: string }
+        action: { type: string }
+        project_id: { type: string }
+        project_name: { type: string }
+        description: { type: string }
+        created_at: { type: string }
+        verified: { type: boolean }
+    IntegrationStatus:
+      type: object
+      required: [name, status, description]
+      properties:
+        name: { type: string }
+        status: { type: string, enum: [connected, not_connected, unavailable] }
+        description: { type: string }
+    SystemStatus:
+      type: object
+      required: [database, authentication, integrations, orchestration]
+      properties:
+        database: { type: string, enum: [connected, unavailable] }
+        authentication: { type: string }
+        orchestration: { type: string }
+        integrations: { type: array, items: { $ref: "#/components/schemas/IntegrationStatus" } }
     HealthStatus:
       type: object
       properties:

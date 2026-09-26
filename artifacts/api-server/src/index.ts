@@ -1,5 +1,8 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { connectMongo } from "./lib/mongo";
+
+void connectMongo().catch(() => { /* API returns an explicit 503 until connectivity recovers. */ });
 
 const rawPort = process.env["PORT"];
 

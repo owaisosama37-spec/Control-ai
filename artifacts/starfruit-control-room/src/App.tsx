@@ -1,62 +1,106 @@
-import { type ReactNode } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ErrorBoundary } from '@/components/error-boundary';
-import { Toaster } from '@/components/ui/toaster';
-import { TooltipProvider } from '@/components/ui/tooltip';
-import NotFound from '@/pages/not-found';
-import {
-  Route,
-  Switch,
-  useLocation,
-  Router as WouterRouter,
-} from 'wouter';
+import { useEffect, useRef, useState } from "react";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
+import { ClerkProvider, SignIn, SignUp, useUser, useClerk } from "@clerk/react";
+import { publishableKeyFromHost } from "@clerk/react/internal";
+import { dark } from "@clerk/themes";
+import { Router, Switch, Route, Link, Redirect, useLocation } from "wouter";
+import { LayoutDashboard, Layers, CheckCheck, ScrollText, Plug, LogOut, ShieldCheck, Menu, X, ArrowUpRight, GitBranch, LockKeyhole, Activity } from "lucide-react";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/toaster";
+import { DashboardPage, ProjectsPage, ProjectPage, ActivityPage, SettingsPage } from "@/pages/room";
+import NotFound from "@/pages/not-found";
 
-const queryClient = new QueryClient();
-
-function Home() {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-gray-900">
-          Replit Agent is building...
-        </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Your app will appear here once it's ready.
-        </p>
+const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
+const clerkPubKey = publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
+const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
+const client = new QueryClient({ defaultOptions: { queries: { staleTime: 10000, refetchInterval: 20000, retry: 1 } } });
+export function Brand() {
+  return <Link href="/" className="brand" data-testid="link-brand"><img src={`${basePath}/logo.svg`} alt="" /><span>starfruit<small>Control room</small></span></Link>;
+}
+function CacheBoundary() {
+  const { addListener } = useClerk();
+  const queryClient = useQueryClient();
+  const previous = useRef<string | null | undefined>(undefined);
+  useEffect(() => addListener(({ user }) => {
+    const id = user?.id ?? null;
+    if (previous.current !== undefined && previous.current !== id) queryClient.clear();
+    previous.current = id;
+  }), [addListener, queryClient]);
+  return null;
+}
+function Landing() {
+  const { isSignedIn, isLoaded } = useUser();
+  if (!isLoaded) return <div className="auth-page"><Brand /><p className="muted">Loading your room…</p></div>;
+  if (isSignedIn) return <Redirect to="/dashboard" />;
+  return <div className="landing">
+    <nav><Brand /><Link className="btn ghost" href="/sign-in" data-testid="link-sign-in">Sign in <ArrowUpRight size={16} /></Link></nav>
+    <section className="hero">
+      <div><div className="eyebrow">Software delivery, under control</div><h1>Big ideas.<br />Clear decisions.<br /><em>One control room.</em></h1>
+        <p>Bring your projects, approval decisions, and delivery budgets together. Know what’s moving — and what needs your attention.</p>
+        <div className="hero-ctas"><Link href="/sign-up" className="btn primary" data-testid="link-start">Create your control room <ArrowUpRight size={17} /></Link><span className="muted text-xs">Private by default. Built for focus.</span></div>
       </div>
-    </div>
-  );
+      <div className="flow-preview" aria-label="Workflow overview, not live project data">
+        <div className="panel-head"><span className="eyebrow">Your delivery workflow</span><GitBranch size={18} className="text-primary" /></div>
+        {[["Define the brief","Capture the scope, client, and budget."],["Approve the plan","Make the decision before work begins."],["Review the delivery","Keep quality and approval visible."],["Mark it merged","Close the loop with a signed record."]].map(([title,description],i)=><div className="flow-step" key={title}><span className="step-number">0{i+1}</span><div><strong>{title}</strong><small>{description}</small></div></div>)}
+        <div className="mt-5 text-[10px] muted">Human-led workflows · Automatic agent execution not enabled</div>
+      </div>
+    </section>
+    <section className="feature-band">
+      {[[Layers,"A single project view","From first draft to final review. Keep priorities, context, and cost alongside the work."],[ShieldCheck,"Decisions with a record","Status changes are recorded with signed activity, so the history stays clear."],[LockKeyhole,"Your private workspace","Secure sign-in and account-isolated project data, persisted in MongoDB."]].map(([Icon,title,text])=> { const I = Icon as typeof Layers; return <div key={String(title)}><I size={23} className="text-primary" /><h3>{String(title)}</h3><p>{String(text)}</p></div>; })}
+    </section>
+  </div>;
 }
-
-function Router() {
-  return (
-    // Keep a shared shell (sidebar, navbar) outside the boundary so it
-    // survives a page crash.
-    <RoutedErrorBoundary>
-      <Switch>
-        <Route path="/" component={Home} />
-        <Route component={NotFound} />
-      </Switch>
-    </RoutedErrorBoundary>
-  );
-}
-
-function RoutedErrorBoundary({ children }: { children: ReactNode }) {
+const navigation = [
+  ["/dashboard","Overview",LayoutDashboard], ["/projects","Projects",Layers],
+  ["/approvals","Approvals",CheckCheck], ["/activity","Activity log",ScrollText], ["/settings","Connections",Plug],
+] as const;
+function Room() {
+  const { isSignedIn, isLoaded, user } = useUser();
+  const { signOut } = useClerk();
   const [location] = useLocation();
-  return <ErrorBoundary resetKey={location}>{children}</ErrorBoundary>;
+  const [open,setOpen] = useState(false);
+  useEffect(() => { setOpen(false); document.title = `${navigation.find(([path])=>location.startsWith(path))?.[1] || "Project"} · Starfruit`; }, [location]);
+  if (!isLoaded) return <div className="auth-page"><Brand /><p>Loading…</p></div>;
+  if (!isSignedIn) return <Redirect to="/" />;
+  return <div className="shell">
+    <aside className={`sidebar ${open ? "open" : ""}`}><Brand />
+      <button className="btn ghost mobile-menu" onClick={()=>setOpen(false)} aria-label="Close navigation" data-testid="button-close-menu"><X size={18} /></button>
+      <div className="nav-caption">WORKSPACE</div><nav>{navigation.map(([path,label,Icon])=><Link key={path} href={path} className={`nav-link ${location.startsWith(path) ? "active" : ""}`} data-testid={`nav-${label}`}><Icon size={18} />{label}</Link>)}</nav>
+      <div className="sidebar-bottom"><div className="private-badge"><ShieldCheck size={17} className="mb-2 text-primary" /><strong>Private control room</strong><br />Your projects. Your decisions.<br />Visible only to your account.</div>
+        <button className="nav-link w-full" onClick={()=>signOut({ redirectUrl: basePath || "/" })} data-testid="button-sign-out"><LogOut size={17} />Sign out</button></div>
+    </aside>
+    <div className="min-w-0"><header className="topbar"><button className="btn ghost mobile-menu" onClick={()=>setOpen(true)} aria-label="Open navigation" data-testid="button-menu"><Menu size={19} /></button><div className="topbar-label"><Activity size={15} /> STARFRUIT <span className="opacity-40">/</span> Workspace</div><div className="topbar-right"><span className="eyebrow hidden sm:block">Manual operations</span><div className="avatar" title={user?.fullName || "Your account"}>{user?.firstName?.[0] || "S"}</div></div></header>
+      <main className="page"><Switch>
+        <Route path="/dashboard" component={DashboardPage} />
+        <Route path="/projects">{()=><ProjectsPage />}</Route>
+        <Route path="/projects/:id">{params=><ProjectPage id={params.id} />}</Route>
+        <Route path="/approvals">{()=><ProjectsPage approvals />}</Route>
+        <Route path="/activity" component={ActivityPage} />
+        <Route path="/settings" component={SettingsPage} />
+        <Route component={NotFound} />
+      </Switch></main>
+    </div>
+  </div>;
 }
-
-function App() {
-  return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
-      </TooltipProvider>
-    </QueryClientProvider>
-  );
+function ClerkRoutes() {
+  const [,setLocation] = useLocation();
+  const stripBase = (path:string) => basePath && path.startsWith(basePath) ? path.slice(basePath.length) || "/" : path;
+  return <ClerkProvider publishableKey={clerkPubKey} proxyUrl={clerkProxyUrl}
+    signInUrl={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`}
+    signInFallbackRedirectUrl={`${basePath}/dashboard`} signUpFallbackRedirectUrl={`${basePath}/dashboard`}
+    routerPush={to=>setLocation(stripBase(to))} routerReplace={to=>setLocation(stripBase(to),{replace:true})}
+    localization={{signIn:{start:{title:"Welcome back",subtitle:"Sign in to your Starfruit control room"}},signUp:{start:{title:"Your next chapter starts here",subtitle:"Create your private Starfruit workspace"}}}}
+    appearance={{ theme: dark, cssLayerName:"clerk",
+      options:{logoImageUrl:`${window.location.origin}${basePath}/logo.svg`,logoPlacement:"inside",logoLinkUrl:basePath || "/"},
+      variables:{colorPrimary:"#d2ed88",colorForeground:"#edf0e9",colorMutedForeground:"#a6b59a",colorBackground:"#1a2418",colorInput:"#131c12",colorInputForeground:"#edf0e9",colorDanger:"#eeaaaa",colorNeutral:"#c5d3bc",fontFamily:"DM Sans, sans-serif",borderRadius:"10px"},
+      elements:{cardBox:{background:"#1a2418",width:440,maxWidth:"100%"},formButtonPrimary:{color:"#203019"},card:{background:"transparent"},footer:{background:"transparent"},headerTitle:{color:"#edf0e9"},headerSubtitle:{color:"#a6b59a"},formFieldLabel:{color:"#edf0e9"},footerActionText:{color:"#a6b59a"},footerActionLink:{color:"#d2ed88"},socialButtonsBlockButtonText:{color:"#edf0e9"},dividerText:{color:"#a6b59a"}},
+    }}>
+    <QueryClientProvider client={client}><CacheBoundary /><TooltipProvider><Switch>
+      <Route path="/" component={Landing} />
+      <Route path="/sign-in/*?">{()=><div className="auth-page"><Brand /><SignIn routing="path" path={`${basePath}/sign-in`} signUpUrl={`${basePath}/sign-up`} /></div>}</Route>
+      <Route path="/sign-up/*?">{()=><div className="auth-page"><Brand /><SignUp routing="path" path={`${basePath}/sign-up`} signInUrl={`${basePath}/sign-in`} /></div>}</Route>
+      <Route><Room /></Route>
+    </Switch><Toaster /></TooltipProvider></QueryClientProvider>
+  </ClerkProvider>;
 }
-
-export default App;
+export default function App() { return <Router base={basePath}><ClerkRoutes /></Router>; }
