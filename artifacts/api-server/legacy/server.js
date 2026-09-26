@@ -19,9 +19,6 @@ import auditRoutes from './routes/audit.js';
 import settingsRoutes from './routes/settings.js';
 import webhookRoutes from './routes/webhooks.js';
 
-// Controllers
-import * as queueController from './controllers/queue.js';
-
 // Middleware
 import { errorHandler } from './middleware/errorHandler.js';
 import { authMiddleware } from './middleware/auth.js';
