@@ -1,9 +1,11 @@
 import { Router } from "express";
-import { getAuth } from "@clerk/express";
+import { getAuth, clerkClient } from "@clerk/express";
 import { randomUUID } from "node:crypto";
-import { CreateProjectBody, UpdateProjectBody, TransitionProjectBody } from "@workspace/api-zod";
+import { CreateProjectBody, UpdateProjectBody, TransitionProjectBody, SaveMemberBody } from "@workspace/api-zod";
 import { connectMongo, mongoose } from "../lib/mongo";
 import { ProjectModel, serializeProject, event, activity, transitions } from "../lib/projects";
+import { Membership } from "../lib/teams";
+import { allows, roomFilter } from "../lib/permissions";
 
 const router = Router();
 
@@ -24,6 +26,7 @@ router.use((req, res, next) => {
   const userId = getAuth(req).userId;
   if (!userId) { res.status(401).json({ error: "Sign in to access your control room." }); return; }
   res.locals.owner = userId;
+  res.locals.actor = userId;
   // Cookie-authenticated mutations must originate from this app.
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
     if (req.get("sec-fetch-site") === "cross-site") {
@@ -42,6 +45,64 @@ router.use((req, res, next) => {
   }));
 });
 
+router.get("/rooms", async (_req, res) => {
+  const memberships = await Membership.find({ user_id: res.locals.actor }).lean();
+  res.json([{ owner_id: res.locals.actor, role: "owner" },
+    ...memberships.map(m => ({ owner_id: m.owner_id, role: m.role }))]);
+});
+
+router.use(async (req, res, next) => {
+  const owner = req.get("x-room-owner") || res.locals.actor;
+  if (!/^user_[a-zA-Z0-9]+$/.test(owner)) {
+    res.status(400).json({ error: "Invalid room identifier." }); return;
+  }
+  const role = owner === res.locals.actor ? "owner" :
+    (await Membership.findOne({ owner_id: owner, user_id: res.locals.actor }).lean())?.role;
+  if (!allows(role, "read")) { res.status(403).json({ error: "You do not have access to this room." }); return; }
+  res.locals.owner = owner;
+  res.locals.role = role;
+  res.locals.scope = roomFilter(owner);
+  if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
+    const permission = req.path.startsWith("/members") ? "members" :
+      req.method === "DELETE" ? "delete" :
+      req.path.endsWith("/status") && req.body?.status !== "awaiting_review" && req.body?.status !== "draft" ? "review" : "edit";
+    if (!allows(role, permission)) {
+      res.status(403).json({ error: "Your role does not permit this action." }); return;
+    }
+  }
+  next();
+});
+
+router.get("/members", async (_req, res) => {
+  const members = await Membership.find({ owner_id: res.locals.owner }).lean();
+  res.json([{ user_id: res.locals.owner, role: "owner" },
+    ...members.map(m => ({ user_id: m.user_id, role: m.role }))]);
+});
+
+const memberInput = SaveMemberBody.strict();
+router.put("/members", async (req, res) => {
+  const parsed = memberInput.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: "Provide a Clerk user ID and a valid member role." }); return; }
+  const { user_id, role } = parsed.data;
+  if (user_id === res.locals.owner) { res.status(400).json({ error: "The room owner cannot be changed." }); return; }
+  try { await clerkClient.users.getUser(user_id); }
+  catch (error: any) {
+    res.status(error.status === 404 ? 400 : 503).json({ error: error.status === 404 ? "This account does not exist. Ask the member to sign up first." : "Unable to verify the account. Retry later." }); return;
+  }
+  await Membership.init();
+  await Membership.findOneAndUpdate({ owner_id: res.locals.owner, user_id },
+    { $set: { role } }, { upsert: true, runValidators: true });
+  res.json({ user_id, role });
+});
+
+router.delete("/members/:userId", async (req, res) => {
+  if (req.params.userId === res.locals.owner) {
+    res.status(400).json({ error: "The room owner cannot be removed." }); return;
+  }
+  await Membership.deleteOne({ owner_id: res.locals.owner, user_id: req.params.userId });
+  res.status(204).end();
+});
+
 router.get("/projects", async (_req, res) => {
   const items = await ProjectModel.find({ owner_id: res.locals.owner, deleted_at: null })
     .select("-room_events").sort({ priority: -1, created_at: -1 }).lean();
@@ -57,7 +118,7 @@ router.post("/projects", async (req, res) => {
   const data = { ...input.data, name: input.data.name.trim() };
   const p = await ProjectModel.create({
     ...data, project_id: id, owner_id: res.locals.owner,
-    room_events: [event(res.locals.owner, id, data.name, "project_created", "Project created in Draft.")],
+    room_events: [event(res.locals.actor, id, data.name, "project_created", "Project created in Draft.")],
   });
   res.status(201).json(serializeProject(p));
 });
@@ -77,7 +138,7 @@ router.patch("/projects/:id", async (req, res) => {
   const p = await ProjectModel.findOneAndUpdate(
     { project_id: req.params.id, owner_id: res.locals.owner, deleted_at: null },
     { $set: { ...data, updated_at: new Date() },
-      $push: { room_events: event(res.locals.owner, String(req.params.id), data.name, "project_updated", "Project details updated.") } },
+      $push: { room_events: event(res.locals.actor, String(req.params.id), data.name, "project_updated", "Project details updated.") } },
     { new: true, runValidators: true },
   );
   if (!p) { res.status(404).json({ error: "Project not found." }); return; }
@@ -100,7 +161,7 @@ router.put("/projects/:id/status", async (req, res) => {
   const p = await ProjectModel.findOneAndUpdate(
     { ...filter, status: expected_status },
     { $set: { status, updated_at: new Date(), rejection_reason: status === "rejected" ? reason!.trim() : "" },
-      $push: { room_events: event(res.locals.owner, old.project_id, old.name, "status_changed",
+      $push: { room_events: event(res.locals.actor, old.project_id, old.name, "status_changed",
         `${expected_status} → ${status}${reason?.trim() ? ": " + reason.trim() : ""}`) } },
     { new: true },
   );
@@ -115,7 +176,7 @@ router.delete("/projects/:id", async (req, res) => {
   const p = await ProjectModel.findOneAndUpdate(
     filter,
     { $set: { deleted_at: new Date(), updated_at: new Date() },
-      $push: { room_events: event(res.locals.owner, existing.project_id, existing.name, "project_removed", "Project removed; history retained.") } },
+      $push: { room_events: event(res.locals.actor, existing.project_id, existing.name, "project_removed", "Project removed; history retained.") } },
     { new: true },
   );
   if (!p) { res.status(404).json({ error: "Project not found." }); return; }

@@ -2,6 +2,10 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 
 type Language = "ar" | "en";
 const arabic: Record<string, string> = {
+  "Team & access":"الفريق والصلاحيات",
+  "Access-controlled rooms":"غرف بصلاحيات محددة",
+  "Private until explicitly shared.":"خاصة حتى تشاركها صراحةً.",
+  "Permissions enforced by role.":"الصلاحيات محددة حسب الدور.",
   "Control room":"غرفة التحكم", "Loading your room…":"جارٍ تحميل غرفتك…", "Loading…":"جارٍ التحميل…",
   "Sign in":"تسجيل الدخول", "Software delivery, under control":"تنفيذ المشاريع بوضوح وتحكم",
   "Big ideas.":"أفكار كبيرة.", "Clear decisions.":"قرارات واضحة.", "One control room.":"غرفة تحكم واحدة.",

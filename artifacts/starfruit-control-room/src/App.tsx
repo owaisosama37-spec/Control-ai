@@ -11,6 +11,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { DashboardPage, ProjectsPage, ProjectPage, ActivityPage, SettingsPage } from "@/pages/room";
 import NotFound from "@/pages/not-found";
+import { TeamBoundary, TeamPage } from "@/components/team";
+import { setRoomOwner } from "@workspace/api-client-react";
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, "");
 const clerkPubKey = publishableKeyFromHost(window.location.hostname, import.meta.env.VITE_CLERK_PUBLISHABLE_KEY);
@@ -30,7 +32,7 @@ function CacheBoundary() {
   const previous = useRef<string | null | undefined>(undefined);
   useEffect(() => addListener(({ user }) => {
     const id = user?.id ?? null;
-    if (previous.current !== undefined && previous.current !== id) queryClient.clear();
+    if (previous.current !== undefined && previous.current !== id) { setRoomOwner(null); queryClient.clear(); }
     previous.current = id;
   }), [addListener, queryClient]);
   return null;
@@ -61,6 +63,7 @@ function Landing() {
 const navigation = [
   ["/dashboard","Overview",LayoutDashboard], ["/projects","Projects",Layers],
   ["/approvals","Approvals",CheckCheck], ["/activity","Activity log",ScrollText], ["/settings","Connections",Plug],
+  ["/team","Team & access",ShieldCheck],
 ] as const;
 function Room() {
   const { t } = useLocale();
@@ -75,19 +78,20 @@ function Room() {
     <aside className={`sidebar ${open ? "open" : ""}`}><Brand />
       <button className="btn ghost mobile-menu" onClick={()=>setOpen(false)} aria-label={t("Close navigation")} data-testid="button-close-menu"><X size={18} /></button>
       <div className="nav-caption">{t("WORKSPACE")}</div><nav>{navigation.map(([path,label,Icon])=><Link key={path} href={path} className={`nav-link ${location.startsWith(path) ? "active" : ""}`} data-testid={`nav-${label}`}><Icon size={18} />{t(label)}</Link>)}</nav>
-      <div className="sidebar-bottom"><div className="private-badge"><ShieldCheck size={17} className="mb-2 text-primary" /><strong>{t("Private control room")}</strong><br />{t("Your projects. Your decisions.")}<br />{t("Visible only to your account.")}</div>
+      <div className="sidebar-bottom"><div className="private-badge"><ShieldCheck size={17} className="mb-2 text-primary" /><strong>{t("Access-controlled rooms")}</strong><br />{t("Private until explicitly shared.")}<br />{t("Permissions enforced by role.")}</div>
         <button className="nav-link w-full" onClick={()=>signOut({ redirectUrl: basePath || "/" })} data-testid="button-sign-out"><LogOut size={17} />{t("Sign out")}</button></div>
     </aside>
     <div className="min-w-0"><header className="topbar"><button className="btn ghost mobile-menu" onClick={()=>setOpen(true)} aria-label={t("Open navigation")} data-testid="button-menu"><Menu size={19} /></button><div className="topbar-label"><Activity size={15} /> STARFRUIT <span className="opacity-40">/</span> {t("Workspace")}</div><div className="topbar-right"><span className="eyebrow hidden sm:block">{t("Manual operations")}</span><LanguageButton /><div className="avatar" title={user?.fullName || t("Your account")}>{user?.firstName?.[0] || "S"}</div></div></header>
-      <main className="page"><Switch>
+      <main className="page"><TeamBoundary key={user!.id}><Switch>
         <Route path="/dashboard" component={DashboardPage} />
         <Route path="/projects">{()=><ProjectsPage />}</Route>
         <Route path="/projects/:id">{params=><ProjectPage id={params.id} />}</Route>
         <Route path="/approvals">{()=><ProjectsPage approvals />}</Route>
         <Route path="/activity" component={ActivityPage} />
         <Route path="/settings" component={SettingsPage} />
+        <Route path="/team" component={TeamPage} />
         <Route component={NotFound} />
-      </Switch></main>
+      </Switch></TeamBoundary></main>
     </div>
   </div>;
 }

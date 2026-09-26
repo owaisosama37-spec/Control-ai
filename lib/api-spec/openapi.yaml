@@ -3,7 +3,14 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: |
+    Authenticated room API. All project, dashboard, audit and member operations
+    accept the optional x-room-owner request header containing a Clerk user ID.
+    Omit it to select the authenticated user's own room. A header is a selector,
+    not authorization: the server verifies explicit membership on every request.
+    Owners manage members and delete projects; editors create/edit and submit
+    work; reviewers approve/reject/pause/resume; viewers have read-only access.
+    GET /rooms always lists rooms for the authenticated identity.
 servers:
   - url: /api
     description: Base API path
@@ -11,6 +18,45 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /rooms:
+    get:
+      operationId: listRooms
+      responses:
+        "200":
+          description: Own room and explicitly granted rooms
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/RoomAccess" } }
+  /members:
+    get:
+      operationId: listMembers
+      responses:
+        "200":
+          description: Members of selected room (x-room-owner header; defaults to own room)
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/RoomMember" } }
+    put:
+      operationId: saveMember
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MemberInput" }
+      responses:
+        "200":
+          description: Membership granted or updated by room owner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomMember" }
+  /members/{userId}:
+    delete:
+      operationId: removeMember
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string } }
+      responses:
+        "204":
+          description: Membership revoked by room owner
   /projects:
     get:
       operationId: listProjects
@@ -119,6 +165,24 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    RoomAccess:
+      type: object
+      required: [owner_id, role]
+      properties:
+        owner_id: { type: string }
+        role: { type: string, enum: [owner, editor, reviewer, viewer] }
+    RoomMember:
+      type: object
+      required: [user_id, role]
+      properties:
+        user_id: { type: string }
+        role: { type: string, enum: [owner, editor, reviewer, viewer] }
+    MemberInput:
+      type: object
+      required: [user_id, role]
+      properties:
+        user_id: { type: string, pattern: '^user_[a-zA-Z0-9]+$', maxLength: 128 }
+        role: { type: string, enum: [editor, reviewer, viewer] }
     ProjectStatus:
       type: string
       enum: [draft, approved_plan, awaiting_review, merged, paused, rejected]

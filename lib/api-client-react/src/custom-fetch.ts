@@ -16,6 +16,8 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 // ---------------------------------------------------------------------------
 
 let _baseUrl: string | null = null;
+let _roomOwner: string | null = null;
+export function setRoomOwner(owner: string | null) { _roomOwner = owner; }
 let _authTokenGetter: AuthTokenGetter | null = null;
 
 /**
@@ -336,6 +338,7 @@ export async function customFetch<T = unknown>(
   }
 
   const headers = mergeHeaders(isRequest(input) ? input.headers : undefined, headersInit);
+  if (_roomOwner) headers.set("x-room-owner", _roomOwner);
 
   if (
     typeof init.body === "string" &&

@@ -10,6 +10,7 @@ import { ProjectForm, errorMessage } from "@/components/project-form";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useLocale } from "@/lib/locale";
+import { useRoomAccess } from "@/components/team";
 
 const money = (v:number,lang="en")=>new Intl.NumberFormat(lang==="ar"?"ar":"en-US",{style:"currency",currency:"USD",maximumFractionDigits:0}).format(v);
 const date = (v:string,lang="en")=>new Date(v).toLocaleString(lang==="ar"?"ar":"en-US",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"});
@@ -22,7 +23,7 @@ const actions: Record<ProjectStatus, {status:ProjectStatus;label:string}[]> = {
 };
 function Badge({ status }: {status:string}) { const {t}=useLocale(); return <span className={`pill ${status}`} data-testid={`status-${status}`}>{t(labels[status as ProjectStatus] || status)}</span>; }
 function ErrorPanel({error,retry}:{error:unknown;retry:()=>unknown}) { const {t}=useLocale();return <div className="error" role="alert"><strong>{t("We couldn’t load this information.")}</strong><p>{t(errorMessage(error))}</p><button className="btn small" onClick={()=>retry()} data-testid="button-retry">{t("Try again")}</button></div>; }
-function Empty({title="No projects yet",text="Start with a project brief. Your work, budget, and approval history will appear here.",onCreate}:{title?:string;text?:string;onCreate?:()=>void}) { const {t}=useLocale();return <div className="empty"><Layers size={31} /><h3>{t(title)}</h3><p>{t(text)}</p>{onCreate && <button className="btn primary" onClick={onCreate} data-testid="button-empty-create"><Plus size={15} />{t("Create your first project")}</button>}</div>; }
+function Empty({title="No projects yet",text="Start with a project brief. Your work, budget, and approval history will appear here.",onCreate}:{title?:string;text?:string;onCreate?:()=>void}) { const {t}=useLocale(); const {canEdit}=useRoomAccess();return <div className="empty"><Layers size={31} /><h3>{t(title)}</h3><p>{t(text)}</p>{onCreate && canEdit && <button className="btn primary" onClick={onCreate} data-testid="button-empty-create"><Plus size={15} />{t("Create your first project")}</button>}</div>; }
 function Heading({title,description,children}:{title:string;description:string;children?:React.ReactNode}) { const {t}=useLocale();return <div className="page-heading"><div><div className="eyebrow">{t("Your control room")}</div><h1>{t(title)}</h1><p>{t(description)}</p></div>{children}</div>; }
 function ActivityList({items}:{items:Activity[]}) {
   const {t,language}=useLocale();
@@ -33,6 +34,7 @@ function ActivityList({items}:{items:Activity[]}) {
   return <div className="timeline">{items.map(e=><div key={e.id} className="timeline-item" data-testid={`activity-${e.id}`}><div className="timeline-icon"><FileCheck2 size={15} /></div><div className="min-w-0"><p><strong>{e.project_name}</strong><br />{describe(e.description)}</p><small>{date(e.created_at,language)} · {t(e.verified ? "Signature verified" : "Signature could not be verified")}</small></div></div>)}</div>;
 }
 export function DashboardPage() {
+  const { canEdit } = useRoomAccess();
   const {t,language}=useLocale();
   const summary = useGetDashboard();
   const projects = useListProjects();
@@ -40,7 +42,7 @@ export function DashboardPage() {
   const [creating,setCreating] = useState(false);
   const pending = projects.data?.filter(p=>["draft","awaiting_review"].includes(p.status)) || [];
   return <>
-    <Heading title="The big picture." description="A clear view of your work, from first draft to final delivery."><button className="btn primary" onClick={()=>setCreating(true)} data-testid="button-new-project"><Plus size={16} />{t("New project")}</button></Heading>
+    <Heading title="The big picture." description="A clear view of your work, from first draft to final delivery."><button disabled={!canEdit} className="btn primary" onClick={()=>setCreating(true)} data-testid="button-new-project"><Plus size={16} />{t("New project")}</button></Heading>
     {summary.isLoading ? <div className="skeleton mb-6" /> : summary.error ? <ErrorPanel error={summary.error} retry={summary.refetch} /> : summary.data && <div className="metric-grid">
       {[[Layers,"Projects",summary.data.total,"Across your private room"],[GitBranch,"In progress",summary.data.active,"Approved and under review"],[CheckCheck,"Needs approval",summary.data.pending,"Drafts and final reviews"],[Wallet,"Total budget",money(summary.data.budget,language),`${money(summary.data.spent,language)} ${t("recorded cost")}`]].map(([Icon,title,value,note])=>{const I=Icon as typeof Layers;return <div className="metric" key={String(title)}><div className="metric-top"><span>{t(String(title))}</span><I size={16} /></div><div className="metric-value" data-testid={`metric-${title}`}>{String(value)}</div><div className="metric-note">{t(String(note))}</div></div>;})}
     </div>}
@@ -57,19 +59,21 @@ export function DashboardPage() {
   </>;
 }
 export function ProjectsPage({approvals=false}:{approvals?:boolean}) {
+  const { canEdit } = useRoomAccess();
   const {t,language}=useLocale();
   const query = useListProjects();
   const [search,setSearch]=useState("");
   const [status,setStatus]=useState("all");
   const [creating,setCreating]=useState(false);
   const items = (query.data || []).filter(p=>(!approvals || ["draft","awaiting_review"].includes(p.status)) && (status==="all" || p.status===status) && `${p.name} ${p.project_id} ${p.client_name}`.toLowerCase().includes(search.toLowerCase()));
-  return <><Heading title={approvals ? "Decisions that move work." : "Your projects."} description={approvals ? "Review project plans and deliveries before moving them forward." : "Prioritized work, with the details that matter."}>{!approvals && <button className="btn primary" onClick={()=>setCreating(true)} data-testid="button-new-project"><Plus size={16} />{t("New project")}</button>}</Heading>
+  return <><Heading title={approvals ? "Decisions that move work." : "Your projects."} description={approvals ? "Review project plans and deliveries before moving them forward." : "Prioritized work, with the details that matter."}>{!approvals && canEdit && <button className="btn primary" onClick={()=>setCreating(true)} data-testid="button-new-project"><Plus size={16} />{t("New project")}</button>}</Heading>
     <div className="toolbar"><div className="search"><Search size={16} /><input className="input" aria-label={t("Search projects")} placeholder={t("Search by name, client, or project ID…")} value={search} onChange={e=>setSearch(e.target.value)} data-testid="input-search" /></div><select className="input" aria-label={t("Filter by status")} value={status} onChange={e=>setStatus(e.target.value)} data-testid="select-status"><option value="all">{t("All stages")}</option>{Object.entries(labels).filter(([v])=>!approvals || ["draft","awaiting_review"].includes(v)).map(([v,label])=><option key={v} value={v}>{t(label)}</option>)}</select><span className="muted text-xs ml-auto">{items.length} {t("projects")}</span></div>
     {query.error ? <ErrorPanel error={query.error} retry={query.refetch} /> : query.isLoading ? <div className="skeleton" /> : <section className="panel">{!items.length ? <Empty title={search || status!=="all" ? "No matching projects" : approvals ? "Your approval queue is clear" : "No projects yet"} text={approvals ? "New drafts and deliveries awaiting review will appear here." : "Create a project or adjust your filters to get started."} onCreate={!approvals && !query.data?.length ? ()=>setCreating(true) : undefined} /> : <div className="table-scroll"><table><thead><tr>{["Project","Stage","Priority","Budget / Cost","Updated"].map(label=><th key={label}>{t(label)}</th>)}<th><span className="sr-only">{t("Open")}</span></th></tr></thead><tbody>{items.map(p=><tr key={p.project_id} data-testid={`row-project-${p.project_id}`}><td><Link className="project-name" href={`/projects/${p.project_id}`}>{p.name}</Link><div className="row-meta"><span dir="ltr">{p.project_id}</span> · {p.client_name || t("Internal")}</div></td><td><Badge status={p.status} /></td><td><span className={p.priority>=8 ? "text-primary" : "muted"}>{t(p.priority>=8 ? "High" : p.priority>=4 ? "Normal" : "Low")} · {p.priority}</span></td><td className="money">{money(p.budget,language)}<div className="row-meta mt-1">{money(p.actual_cost,language)} {t("spent")}</div></td><td className="muted">{date(p.updated_at,language)}</td><td><Link href={`/projects/${p.project_id}`} className="btn small ghost" aria-label={`${t("Open")} ${p.name}`} data-testid={`open-${p.project_id}`}><ArrowUpRight size={16} /></Link></td></tr>)}</tbody></table></div>}</section>}
     {creating && <ProjectForm onClose={()=>setCreating(false)} />}
   </>;
 }
 export function ProjectPage({id}:{id:string}) {
+  const { canEdit, canReview, isOwner } = useRoomAccess();
   const {t,language}=useLocale();
   const query=useGetProject(id,{query:{queryKey:getGetProjectQueryKey(id),enabled:!!id}});
   const history=useListActivity();
@@ -102,9 +106,9 @@ export function ProjectPage({id}:{id:string}) {
   if(!p) return null;
   return <>
     <Link href="/projects" className="inline-flex items-center gap-2 muted text-xs mb-7" data-testid="link-back-projects"><ArrowLeft size={14} />{t("Back to projects")}</Link>
-    <Heading title={p.name} description={`${p.project_id} · ${p.client_name || t("Internal project")}`}><div className="flex gap-2"><button className="btn" onClick={()=>setEditing(true)} data-testid="button-edit"><Pencil size={15} />{t("Edit")}</button><button className="btn danger" onClick={()=>{setMessage("");setDeleting(true);}} aria-label={t("Remove project")} data-testid="button-delete"><Trash2 size={15} /></button></div></Heading>
+    <Heading title={p.name} description={`${p.project_id} · ${p.client_name || t("Internal project")}`}><div className="flex gap-2">{canEdit && <button className="btn" onClick={()=>setEditing(true)} data-testid="button-edit"><Pencil size={15} />{t("Edit")}</button>}{isOwner && <button className="btn danger" onClick={()=>{setMessage("");setDeleting(true);}} aria-label={t("Remove project")} data-testid="button-delete"><Trash2 size={15} /></button>}</div></Heading>
     <div className="metric-grid">{[["Budget",money(p.budget,language)],["Recorded cost",money(p.actual_cost,language)],["Remaining",money(p.budget-p.actual_cost,language)],["Priority",`${p.priority} / 10`]].map(([label,value])=><div className="metric" key={label}><div className="metric-top">{t(label)}</div><div className="metric-value">{value}</div></div>)}</div>
-    <div className="split-grid"><div className="stack"><section className="panel"><div className="panel-head"><h2>{t("Project brief")}</h2><Badge status={p.status} /></div><div className="detail-summary"><div className="eyebrow">{t(p.project_type)}</div><p>{p.description || t("No project brief has been added yet.")}</p>{p.rejection_reason && <div className="notice"><strong>{t("Rejection reason")}</strong><br />{p.rejection_reason}</div>}<div className="detail-actions">{actions[p.status].map(a=><button className={`btn ${a.status==="rejected" ? "danger" : "primary"}`} key={a.status} onClick={()=>{setMessage("");setReason("");setDecision(a.status);}} data-testid={`button-${a.status}`}>{a.status==="merged" ? <GitMerge size={15} /> : <CheckCheck size={15} />}{t(a.label)}</button>)}</div></div></section>
+    <div className="split-grid"><div className="stack"><section className="panel"><div className="panel-head"><h2>{t("Project brief")}</h2><Badge status={p.status} /></div><div className="detail-summary"><div className="eyebrow">{t(p.project_type)}</div><p>{p.description || t("No project brief has been added yet.")}</p>{p.rejection_reason && <div className="notice"><strong>{t("Rejection reason")}</strong><br />{p.rejection_reason}</div>}<div className="detail-actions">{actions[p.status].filter(a=>["awaiting_review","draft"].includes(a.status) ? canEdit : canReview).map(a=><button className={`btn ${a.status==="rejected" ? "danger" : "primary"}`} key={a.status} onClick={()=>{setMessage("");setReason("");setDecision(a.status);}} data-testid={`button-${a.status}`}>{a.status==="merged" ? <GitMerge size={15} /> : <CheckCheck size={15} />}{t(a.label)}</button>)}</div></div></section>
       <section className="panel"><div className="panel-head"><h2>{t("Project activity")}</h2><ShieldCheck size={17} className="text-primary" /></div>{history.error ? <ErrorPanel error={history.error} retry={history.refetch} /> : history.isLoading ? <div className="skeleton" /> : <ActivityList items={(history.data || []).filter(e=>e.project_id===id)} />}</section>
     </div><section className="panel h-fit p-6"><Clock3 size={20} className="text-primary mb-5" /><h2 className="text-lg">{t("A clear path to delivery")}</h2><p className="muted text-xs leading-7 mt-3">{t("Draft → Plan approved → Awaiting review → Merged.")}</p><p className="muted text-xs leading-7 mt-3">{t("Approvals here record your decisions. They do not start an AI agent, deploy software, or merge a repository.")}</p><div className="border-t mt-6 pt-5 text-xs muted leading-7">{t("Created")} {date(p.created_at,language)}<br />{t("Updated")} {date(p.updated_at,language)}</div></section></div>
     {editing && <ProjectForm project={p} onClose={()=>setEditing(false)} />}

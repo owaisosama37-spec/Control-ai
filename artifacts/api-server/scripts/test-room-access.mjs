@@ -1,0 +1,157 @@
+// Exercise the real Express router with isolated identity/persistence adapters.
+// No live Clerk accounts, database records, or auth bypasses are created.
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { build } from "esbuild";
+import express from "express";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+
+const memberships = [];
+const records = [];
+let calls = [];
+const matches = (r, f) => Object.entries(f).every(([k, v]) => v === null ? r[k] == null : r[k] === v);
+const query = value => ({ select() { return this; }, sort() { return this; }, lean: async () => value, then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
+const Membership = {
+  find: f => query(memberships.filter(r => matches(r, f))),
+  findOne: f => query(memberships.find(r => matches(r, f))),
+  init: async () => {},
+  findOneAndUpdate: async (f, update) => {
+    const m = memberships.find(r => matches(r, f));
+    if (m) Object.assign(m, update.$set); else memberships.push({ ...f, ...update.$set });
+  },
+  deleteOne: async f => { const i = memberships.findIndex(r => matches(r, f)); if (i >= 0) memberships.splice(i, 1); },
+};
+const ProjectModel = {
+  find: f => { calls.push(f); return query(records.filter(r => matches(r, f))); },
+  findOne: f => { calls.push(f); return query(records.find(r => matches(r, f))); },
+  create: async data => { records.push(data); return data; },
+  findOneAndUpdate: async (f, u) => {
+    calls.push(f);
+    const r = records.find(r => matches(r, f));
+    if (!r) return null;
+    Object.assign(r, u.$set);
+    if (u.$push) r.room_events.push(u.$push.room_events);
+    return r;
+  },
+  aggregate: async pipeline => { calls.push(pipeline[0].$match); return []; },
+};
+globalThis.__roomTest = {
+  getAuth: req => ({ userId: req.get("test-identity") || null }),
+  clerkClient: { users: { getUser: async id => {
+    if (id === "user_missing") throw Object.assign(new Error(), { status: 404 });
+    return { id };
+  } } },
+  connectMongo: async () => {}, mongoose: { connection: { readyState: 1 } },
+  Membership, ProjectModel,
+  serializeProject: p => ({ project_id: p.project_id, name: p.name, status: p.status }),
+  event: actor => ({ actor }), activity: e => e,
+  transitions: { draft: ["approved_plan", "rejected"], approved_plan: ["awaiting_review"], awaiting_review: ["merged", "rejected"], rejected: ["draft"], merged: ["paused"], paused: ["merged"] },
+};
+const temp = await mkdtemp(path.join(tmpdir(), "room-tests-"));
+const outfile = path.join(temp, "router.mjs");
+await build({
+  entryPoints: [new URL("../src/routes/room.ts", import.meta.url).pathname],
+  outfile, bundle: true, platform: "node", format: "esm",
+  plugins: [{ name: "isolated-adapters", setup(b) {
+    for (const [filter, names] of [
+      [/^@clerk\/express$/, ["getAuth", "clerkClient"]],
+      [/\/lib\/mongo$/, ["connectMongo", "mongoose"]],
+      [/\/lib\/teams$/, ["Membership"]],
+      [/\/lib\/projects$/, ["ProjectModel", "serializeProject", "event", "activity", "transitions"]],
+    ]) {
+      b.onResolve({ filter }, args => ({ path: names.join(","), namespace: "adapter" }));
+    }
+    b.onResolve({ filter: /^express$/ }, () => ({ path: import.meta.resolve("express").replace("file://", ""), external: true }));
+    b.onLoad({ filter: /.*/, namespace: "adapter" }, args => ({ contents: `export const {${args.path}} = globalThis.__roomTest;`, loader: "js" }));
+  } }],
+});
+const { default: router } = await import(pathToFileURL(outfile));
+const app = express();
+app.use(express.json());
+app.use(router);
+const server = app.listen(0, "127.0.0.1");
+await new Promise(resolve => server.once("listening", resolve));
+const base = `http://127.0.0.1:${server.address().port}`;
+async function request(method, url, actor, owner, body) {
+  return fetch(base + url, {
+    method, headers: { "content-type": "application/json", ...(actor ? { "test-identity": actor } : {}), ...(owner ? { "x-room-owner": owner } : {}) },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+}
+const input = { name: "Test", description: "", client_name: "", budget: 0, actual_cost: 0, priority: 5, project_type: "other" };
+try {
+  await test("anonymous denied; personal scopes exclude other owners and unowned legacy records", async () => {
+    assert.equal((await request("GET", "/projects")).status, 401);
+    records.push({ project_id: "legacy", name: "Legacy" }, { project_id: "foreign", owner_id: "user_other", name: "Foreign" });
+    assert.deepEqual(await (await request("GET", "/projects", "user_owner")).json(), []);
+    for (const id of ["legacy", "foreign"]) {
+      assert.equal((await request("GET", `/projects/${id}`, "user_owner")).status, 404);
+      assert.equal((await request("PATCH", `/projects/${id}`, "user_owner", null, input)).status, 404);
+      assert.equal((await request("DELETE", `/projects/${id}`, "user_owner")).status, 404);
+      assert.equal((await request("PUT", `/projects/${id}/status`, "user_owner", null, { status: "approved_plan", expected_status: "draft" })).status, 404);
+    }
+  });
+  await test("forged room header denies every read/mutation including summaries and audit", async () => {
+    for (const [method, url] of [["GET","/projects"],["GET","/projects/foreign"],["POST","/projects"],["PATCH","/projects/foreign"],["PUT","/projects/foreign/status"],["DELETE","/projects/foreign"],["GET","/dashboard"],["GET","/audit"],["GET","/members"],["PUT","/members"],["DELETE","/members/user_owner"]]) {
+      assert.equal((await request(method, url, "user_stranger", "user_owner", method === "GET" ? undefined : input)).status, 403, `${method} ${url}`);
+    }
+  });
+  await test("only owner grants known accounts and owner cannot be replaced, demoted or removed", async () => {
+    for (const role of ["viewer", "editor", "reviewer"]) {
+      assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: `user_${role}`, role })).status, 200);
+    }
+    assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: "user_missing", role: "viewer" })).status, 400);
+    assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: "user_other", role: "owner" })).status, 400);
+    assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: "user_owner", role: "viewer" })).status, 400);
+    assert.equal((await request("DELETE", "/members/user_owner", "user_owner")).status, 400);
+    for (const role of ["viewer", "editor", "reviewer"]) {
+      assert.equal((await request("PUT", "/members", `user_${role}`, "user_owner", { user_id: `user_${role}`, role: "editor" })).status, 403);
+      assert.equal((await request("DELETE", "/members/user_owner", `user_${role}`, "user_owner")).status, 403);
+    }
+  });
+  await test("role matrix, scoped creation, actor attribution and cross-room isolation", async () => {
+    const created = await request("POST", "/projects", "user_editor", "user_owner", { ...input, owner_id: "user_other", status: "merged" });
+    assert.equal(created.status, 201);
+    const { project_id: id } = await created.json();
+    const record = records.find(p => p.project_id === id);
+    record.status = "draft"; // Mongoose default in the real adapter.
+    assert.equal(record.owner_id, "user_owner");
+    assert.equal(record.room_events[0].actor, "user_editor");
+    for (const role of ["viewer", "reviewer"]) {
+      assert.equal((await request("POST", "/projects", `user_${role}`, "user_owner", input)).status, 403);
+      assert.equal((await request("PATCH", `/projects/${id}`, `user_${role}`, "user_owner", input)).status, 403);
+    }
+    for (const role of ["viewer", "editor", "reviewer"]) {
+      assert.equal((await request("GET", `/projects/${id}`, `user_${role}`, "user_owner")).status, 200);
+      assert.equal((await request("DELETE", `/projects/${id}`, `user_${role}`, "user_owner")).status, 403);
+      assert.equal((await request("GET", "/projects/foreign", `user_${role}`, "user_owner")).status, 404);
+    }
+    assert.equal((await request("PUT", `/projects/${id}/status`, "user_editor", "user_owner", { status: "approved_plan", expected_status: "draft" })).status, 403);
+    assert.equal((await request("PUT", `/projects/${id}/status`, "user_reviewer", "user_owner", { status: "approved_plan", expected_status: "draft" })).status, 200);
+    assert.equal((await request("PUT", `/projects/${id}/status`, "user_editor", "user_owner", { status: "awaiting_review", expected_status: "approved_plan" })).status, 200);
+    assert.equal((await request("PUT", `/projects/${id}/status`, "user_viewer", "user_owner", { status: "merged", expected_status: "awaiting_review" })).status, 403);
+    assert.equal((await request("PUT", `/projects/${id}/status`, "user_reviewer", "user_owner", { status: "merged", expected_status: "awaiting_review" })).status, 200);
+    calls = [];
+    await request("GET", "/dashboard", "user_viewer", "user_owner");
+    await request("GET", "/audit", "user_viewer", "user_owner");
+    assert.ok(calls.every(f => f.owner_id === "user_owner"));
+    assert.equal((await request("DELETE", `/projects/${id}`, "user_owner")).status, 204);
+  });
+  await test("role changes and revocation take effect on next request; room list is identity scoped", async () => {
+    assert.equal((await (await request("GET", "/rooms", "user_viewer")).json()).length, 2);
+    await request("PUT", "/members", "user_owner", null, { user_id: "user_editor", role: "viewer" });
+    assert.equal((await request("POST", "/projects", "user_editor", "user_owner", input)).status, 403);
+    await request("DELETE", "/members/user_viewer", "user_owner");
+    assert.equal((await request("GET", "/projects", "user_viewer", "user_owner")).status, 403);
+    assert.equal((await (await request("GET", "/rooms", "user_viewer")).json()).length, 1);
+    assert.equal((await request("GET", "/projects", "user_viewer")).status, 200);
+  });
+} finally {
+  server.closeAllConnections();
+  await new Promise(resolve => server.close(resolve));
+  await rm(temp, { recursive: true, force: true });
+  delete globalThis.__roomTest;
+}

@@ -1,0 +1,1 @@
+- [Team sharing boundary](team-sharing.md) — preserve private ownership when adding collaboration; sharing is explicit and legacy data stays quarantined.
