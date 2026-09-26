@@ -1,183 +1,92 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import compression from 'compression';
-import dotenv from 'dotenv';
-import { createServer } from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import mongoose from 'mongoose';
-import rateLimit from 'express-rate-limit';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+const express = require('express');
+const crypto = require('crypto');
+const router = express.Router();
 
-// Routes
-import projectRoutes from './routes/projects.js';
-import taskRoutes from './routes/tasks.js';
-import authRoutes from './routes/auth.js';
-import analyticsRoutes from './routes/analytics.js';
-import auditRoutes from './routes/audit.js';
-import settingsRoutes from './routes/settings.js';
-import webhookRoutes from './routes/webhooks.js';
+// Capture raw body for webhook signature verification
+const captureWebhookBody = (req, res, buf, encoding) => {
+  if (req.path.includes('/api/webhooks')) {
+    req.rawBody = buf.toString(encoding || 'utf8');
+  }
+};
 
-// Middleware
-import { errorHandler } from './middleware/errorHandler.js';
-import { authMiddleware } from './middleware/auth.js';
-import { loggingMiddleware } from './middleware/logging.js';
+// Verify webhook signature (HMAC SHA256)
+const verifyWebhookSignature = (rawBody, signature, secret) => {
+  const expectedSignature = 'sha256=' + crypto.createHmac('sha256', secret)
+    .update(rawBody).digest('hex');
 
-dotenv.config();
+  console.log('🔐 SIGNATURE DEBUG:');
+  console.log('  Secret used:', secret);
+  console.log('  Received signature:', signature);
+  console.log('  Calculated signature:', expectedSignature);
+  console.log('  Match:', signature === expectedSignature);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+  return crypto.timingSafeEqual(
+    Buffer.from(signature),
+    Buffer.from(expectedSignature)
+  );
+};
 
-const app = express();
-const httpServer = createServer(app);
-const io = new SocketIOServer(httpServer, {
-  cors: {
-    origin: process.env.CORS_ORIGIN || '*',
-    credentials: true
+// POST /github - GitHub webhook
+router.post('/github', (req, res) => {
+  console.log('\n📨 GitHub webhook received');
+
+  const secret = process.env.GITHUB_WEBHOOK_SECRET || 'starfruit-webhook-secret-2024';
+  console.log('🔑 Using secret:', secret);
+
+  const signature = req.headers['x-hub-signature-256'];
+  console.log('📋 Received signature header:', signature);
+
+  if (!signature) {
+    console.log('❌ No signature header found');
+    return res.status(400).json({ error: 'No signature header' });
+  }
+
+  try {
+    if (!verifyWebhookSignature(req.rawBody, signature, secret)) {
+      console.log('❌ Signature verification failed');
+      return res.status(401).json({ error: 'Signature verification failed' });
+    }
+
+    console.log('✅ Signature verified successfully');
+    const payload = JSON.parse(req.rawBody);
+    console.log('Event type:', payload.action || 'unknown');
+    res.json({ status: 'success', message: 'GitHub webhook received' });
+  } catch (err) {
+    console.error('❌ Error verifying signature:', err.message);
+    return res.status(401).json({ error: 'Signature verification failed' });
   }
 });
 
-// Global Variables
-let systemState = {
-  mode: 'manual', // manual or autonomous
-  claude_status: 'online',
-  replit_status: 'online',
-  gemini_status: 'online',
-  emergency_stop: false,
-  last_update: new Date()
-};
+// POST /slack - Slack commands
+router.post('/slack', (req, res) => {
+  console.log('\n💬 Slack command received');
+  const command = req.body.command;
+  const userId = req.body.user_id;
+  const responseUrl = req.body.response_url;
 
-// Security Middleware
-app.use(helmet());
-app.use(compression());
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*',
-  credentials: true
-}));
+  console.log('Command:', command);
+  console.log('User ID:', userId);
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100
-});
-app.use('/api/', limiter);
-
-// Body parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
-
-// Logging
-app.use(loggingMiddleware);
-
-// Database Connection
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/starfruit-control-room')
-  .then(() => console.log('✓ MongoDB connected'))
-  .catch(err => console.error('✗ MongoDB connection error:', err));
-
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/projects', authMiddleware, projectRoutes);
-app.use('/api/tasks', authMiddleware, taskRoutes);
-app.use('/api/analytics', authMiddleware, analyticsRoutes);
-app.use('/api/audit', authMiddleware, auditRoutes);
-app.use('/api/settings', authMiddleware, settingsRoutes);
-app.use('/api/webhooks', webhookRoutes);
-
-// System Status Endpoints
-app.get('/api/system/status', (req, res) => {
-  res.json({
-    status: 'ok',
-    mode: systemState.mode,
-    agents: {
-      claude: systemState.claude_status,
-      replit: systemState.replit_status,
-      gemini: systemState.gemini_status
-    },
-    emergency_stop: systemState.emergency_stop,
-    timestamp: new Date()
-  });
+  if (command === '/sf-approve') {
+    console.log('✅ Processing /sf-approve');
+    res.json({ text: 'Approval processed' });
+  } else if (command === '/sf-reject') {
+    console.log('❌ Processing /sf-reject');
+    res.json({ text: 'Rejection processed' });
+  } else if (command === '/sf-status') {
+    console.log('📊 Processing /sf-status');
+    res.json({ text: 'Status: Ready' });
+  } else {
+    console.log('⚠️ Unknown command:', command);
+    res.json({ text: 'Unknown command' });
+  }
 });
 
-// Sleep Mode Toggle
-app.post('/api/system/sleep-mode', authMiddleware, (req, res) => {
-  const { enabled } = req.body;
-  systemState.mode = enabled ? 'autonomous' : 'manual';
-
-  io.emit('system:mode-changed', {
-    mode: systemState.mode,
-    timestamp: new Date()
-  });
-
-  res.json({
-    success: true,
-    mode: systemState.mode,
-    message: enabled ? 'Autonomous mode enabled' : 'Manual mode enabled'
-  });
+// POST /custom - Custom events
+router.post('/custom', (req, res) => {
+  console.log('\n🔧 Custom event received:', req.body);
+  res.json({ status: 'received' });
 });
 
-// Emergency Stop
-app.post('/api/system/emergency-stop', authMiddleware, async (req, res) => {
-  systemState.emergency_stop = true;
-  systemState.mode = 'manual';
-
-  // Broadcast to all clients
-  io.emit('system:emergency-stop', {
-    timestamp: new Date(),
-    initiated_by: req.user.id
-  });
-
-  // Log the action
-  console.error('🚨 EMERGENCY STOP ACTIVATED');
-
-  res.json({
-    success: true,
-    message: 'Emergency stop activated'
-  });
-});
-
-// Real-time WebSocket Connection
-io.on('connection', (socket) => {
-  console.log(`✓ Client connected: ${socket.id}`);
-
-  // Send current system state
-  socket.emit('system:state', systemState);
-
-  // Handle task updates
-  socket.on('task:update', async (data) => {
-    io.emit('task:updated', data);
-  });
-
-  // Handle queue events
-  socket.on('queue:reorder', (data) => {
-    io.emit('queue:reordered', data);
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`✗ Client disconnected: ${socket.id}`);
-  });
-});
-
-// Health Check
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date() });
-});
-
-// 404 Handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
-});
-
-// Error Handler
-app.use(errorHandler);
-
-// Start Server
-const PORT = process.env.PORT || 3000;
-httpServer.listen(PORT, () => {
-  console.log(`\n🎛️  Control Room Dashboard Server started on port ${PORT}`);
-  console.log(`📊 Dashboard: http://localhost:${PORT}`);
-  console.log(`🔌 WebSocket: ws://localhost:${PORT}`);
-  console.log(`📚 API Docs: http://localhost:${PORT}/api/docs\n`);
-});
-
-export { app, io, systemState };
+module.exports = router;
+module.exports.captureWebhookBody = captureWebhookBody;

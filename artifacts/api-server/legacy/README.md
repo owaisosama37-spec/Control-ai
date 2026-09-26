@@ -367,21 +367,30 @@ Track your path to $100k annual revenue:
 ### GitHub
 ```bash
 POST /api/webhooks/github
-Headers: x-webhook-signature, x-webhook-timestamp
+Headers: X-Hub-Signature-256 (HMAC-SHA256 of the raw body), X-GitHub-Event
 Events: pull_request opened, synchronize, closed+merged
 ```
+Requires `GITHUB_WEBHOOK_SECRET`; project-changing events also require
+`GITHUB_REPO` or both `GITHUB_REPO_OWNER` and `GITHUB_REPO_NAME`.
+Use a signed `ping` event for a safe local connectivity check.
 
 ### Slack
 ```bash
 POST /api/webhooks/slack
-Commands: /approve <project-id>
+Headers: X-Slack-Signature, X-Slack-Request-Timestamp
+Commands: /approve <project-id> (or /sf-approve <project-id>)
 ```
+Requires `SLACK_SIGNING_SECRET` and an active legacy user mapped to the Slack
+user and workspace with `approve_projects` permission. The local smoke check
+uses an empty project ID so it cannot change a real project.
 
 ### Custom
 ```bash
 POST /api/webhooks/custom
-Events: task_created, status_changed, etc.
+Header: X-Webhook-Signature (HMAC-SHA256 of the raw body)
+Event: task_created
 ```
+Requires `CUSTOM_WEBHOOK_SECRET`; without it the endpoint fails closed.
 
 ---
 
