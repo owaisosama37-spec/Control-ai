@@ -150,6 +150,42 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/SystemStatus" }
+  /integrations/access:
+    get:
+      operationId: getIntegrationAccess
+      responses:
+        "200":
+          description: Authenticated account-level administrator check
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationAccess" }
+  /integrations:
+    get:
+      operationId: listIntegrations
+      description: Administrator only. Returns variable names, never secret values.
+      responses:
+        "200":
+          description: Configuration state of the five integrations
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/IntegrationConfiguration" }
+        "403": { description: Integration administrator access required }
+  /integrations/{id}/test:
+    post:
+      operationId: testIntegration
+      description: Administrator only. Sends a test email to the administrator for the email integration.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, enum: [claude, gemini, github, slack, email] } }
+      responses:
+        "200":
+          description: Live connection test result
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationTestResult" }
+        "400": { description: Unknown or unconfigured integration }
+        "403": { description: Integration administrator access required }
   /healthz:
     get:
       operationId: healthCheck
@@ -165,6 +201,33 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    IntegrationAccess:
+      type: object
+      required: [isAdmin, needsSetup]
+      properties:
+        isAdmin: { type: boolean }
+        needsSetup: { type: boolean }
+    IntegrationConfiguration:
+      type: object
+      required: [id, configured, missing, alternatives]
+      properties:
+        id: { type: string, enum: [claude, gemini, github, slack, email] }
+        configured: { type: boolean }
+        missing:
+          type: array
+          items: { type: string }
+        alternatives:
+          type: array
+          description: Missing variable names for each alternative credential set; one complete set is sufficient.
+          items:
+            type: array
+            items: { type: string }
+    IntegrationTestResult:
+      type: object
+      required: [ok, message]
+      properties:
+        ok: { type: boolean }
+        message: { type: string }
     RoomAccess:
       type: object
       required: [owner_id, role]

@@ -30,6 +30,9 @@ import type {
   Activity,
   Dashboard,
   HealthStatus,
+  IntegrationAccess,
+  IntegrationConfiguration,
+  IntegrationTestResult,
   MemberInput,
   Project,
   ProjectInput,
@@ -1028,6 +1031,222 @@ export function useGetSystemStatus<TData = Awaited<ReturnType<typeof getSystemSt
 
 
 
+
+export const getGetIntegrationAccessUrl = () => {
+
+
+
+
+  return `/api/integrations/access`
+}
+
+export const getIntegrationAccess = async ( options?: Parameters<typeof customFetch>[1]): Promise<IntegrationAccess> => {
+
+  return customFetch<IntegrationAccess>(getGetIntegrationAccessUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetIntegrationAccessQueryKey = () => {
+    return [
+    `/api/integrations/access`
+    ] as const;
+    }
+
+
+export const getGetIntegrationAccessQueryOptions = <TData = Awaited<ReturnType<typeof getIntegrationAccess>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntegrationAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetIntegrationAccessQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getIntegrationAccess>>> = ({ signal }) => getIntegrationAccess({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getIntegrationAccess>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetIntegrationAccessQueryResult = NonNullable<Awaited<ReturnType<typeof getIntegrationAccess>>>
+export type GetIntegrationAccessQueryError = ErrorType<unknown>
+
+
+
+export function useGetIntegrationAccess<TData = Awaited<ReturnType<typeof getIntegrationAccess>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getIntegrationAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetIntegrationAccessQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListIntegrationsUrl = () => {
+
+
+
+
+  return `/api/integrations`
+}
+
+/**
+ * Administrator only. Returns variable names, never secret values.
+ */
+export const listIntegrations = async ( options?: Parameters<typeof customFetch>[1]): Promise<IntegrationConfiguration[]> => {
+
+  return customFetch<IntegrationConfiguration[]>(getListIntegrationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListIntegrationsQueryKey = () => {
+    return [
+    `/api/integrations`
+    ] as const;
+    }
+
+
+export const getListIntegrationsQueryOptions = <TData = Awaited<ReturnType<typeof listIntegrations>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listIntegrations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListIntegrationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listIntegrations>>> = ({ signal }) => listIntegrations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listIntegrations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListIntegrationsQueryResult = NonNullable<Awaited<ReturnType<typeof listIntegrations>>>
+export type ListIntegrationsQueryError = ErrorType<void>
+
+
+
+export function useListIntegrations<TData = Awaited<ReturnType<typeof listIntegrations>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listIntegrations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListIntegrationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getTestIntegrationUrl = (id: 'claude' | 'gemini' | 'github' | 'slack' | 'email',) => {
+
+
+
+
+  return `/api/integrations/${id}/test`
+}
+
+/**
+ * Administrator only. Sends a test email to the administrator for the email integration.
+ */
+export const testIntegration = async (id: 'claude' | 'gemini' | 'github' | 'slack' | 'email', options?: Parameters<typeof customFetch>[1]): Promise<IntegrationTestResult> => {
+
+  return customFetch<IntegrationTestResult>(getTestIntegrationUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getTestIntegrationMutationKey = () => ['testIntegration'] as const;
+
+export const getTestIntegrationMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testIntegration>>, TError,TestIntegrationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof testIntegration>>, TError,TestIntegrationMutationVariables, TContext> => {
+
+const mutationKey = getTestIntegrationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testIntegration>>, TestIntegrationMutationVariables> = (props) => {
+          const {id} = props ?? {};
+
+          return  testIntegration(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestIntegrationMutationResult = NonNullable<Awaited<ReturnType<typeof testIntegration>>>
+
+    export type TestIntegrationMutationError = ErrorType<void>
+    export type TestIntegrationMutationVariables = {id: 'claude' | 'gemini' | 'github' | 'slack' | 'email'}
+
+    export const useTestIntegration = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testIntegration>>, TError,TestIntegrationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof testIntegration>>,
+        TError,
+        TestIntegrationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getTestIntegrationMutationOptions(options));
+    }
 
 export const getHealthCheckUrl = () => {
 

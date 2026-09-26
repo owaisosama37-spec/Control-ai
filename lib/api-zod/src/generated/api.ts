@@ -349,6 +349,37 @@ export const GetSystemStatusResponse = zod.object({
 })
 
 
+export const GetIntegrationAccessResponse = zod.object({
+  "isAdmin": zod.boolean(),
+  "needsSetup": zod.boolean()
+})
+
+
+/**
+ * Administrator only. Returns variable names, never secret values.
+ */
+export const ListIntegrationsResponseItem = zod.object({
+  "id": zod.enum(['claude', 'gemini', 'github', 'slack', 'email']),
+  "configured": zod.boolean(),
+  "missing": zod.array(zod.string()),
+  "alternatives": zod.array(zod.array(zod.string())).describe('Missing variable names for each alternative credential set; one complete set is sufficient.')
+})
+export const ListIntegrationsResponse = zod.array(ListIntegrationsResponseItem)
+
+
+/**
+ * Administrator only. Sends a test email to the administrator for the email integration.
+ */
+export const TestIntegrationParams = zod.object({
+  "id": zod.enum(['claude', 'gemini', 'github', 'slack', 'email'])
+})
+
+export const TestIntegrationResponse = zod.object({
+  "ok": zod.boolean(),
+  "message": zod.string()
+})
+
+
 /**
  * Returns server health status
  * @summary Health check

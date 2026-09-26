@@ -12,6 +12,35 @@
  *
  * OpenAPI spec version: 0.1.0
  */
+export interface IntegrationAccess {
+  isAdmin: boolean;
+  needsSetup: boolean;
+}
+
+export type IntegrationConfigurationId = typeof IntegrationConfigurationId[keyof typeof IntegrationConfigurationId];
+
+
+export const IntegrationConfigurationId = {
+  claude: 'claude',
+  gemini: 'gemini',
+  github: 'github',
+  slack: 'slack',
+  email: 'email',
+} as const;
+
+export interface IntegrationConfiguration {
+  id: IntegrationConfigurationId;
+  configured: boolean;
+  missing: string[];
+  /** Missing variable names for each alternative credential set; one complete set is sufficient. */
+  alternatives: string[][];
+}
+
+export interface IntegrationTestResult {
+  ok: boolean;
+  message: string;
+}
+
 export type RoomAccessRole = typeof RoomAccessRole[keyof typeof RoomAccessRole];
 
 

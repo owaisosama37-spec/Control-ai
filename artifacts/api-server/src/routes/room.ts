@@ -8,6 +8,7 @@ import { getClerkMode, getRuntimeEnvironment } from "../lib/config";
 import { ProjectModel, serializeProject, event, activity, transitions } from "../lib/projects";
 import { Membership } from "../lib/teams";
 import { allows, roomFilter } from "../lib/permissions";
+import { isConfigured } from "../integrations/registry";
 
 const router = Router();
 
@@ -28,11 +29,6 @@ const systemStatusSchema = z.object({
   orchestration: z.string(),
 });
 
-const hasAnyConfigured = (...names: string[]) =>
-  names.some((name) => Boolean(process.env[name]?.trim()));
-const hasAllConfigured = (...names: string[]) =>
-  names.every((name) => Boolean(process.env[name]?.trim()));
-
 router.get("/system/status", (_req, res) => {
   const status = {
     database: mongoose.connection.readyState === 1 ? "connected" : "unavailable",
@@ -41,24 +37,11 @@ router.get("/system/status", (_req, res) => {
     authentication: "Clerk",
     clerkMode: getClerkMode(),
     integrations: {
-      claude: {
-        configured: hasAnyConfigured("AI_INTEGRATIONS_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"),
-      },
-      gemini: {
-        configured: hasAnyConfigured("AI_INTEGRATIONS_GEMINI_API_KEY", "GEMINI_API_KEY"),
-      },
-      github: {
-        configured: hasAllConfigured("GITHUB_TOKEN", "GITHUB_WEBHOOK_SECRET", "GITHUB_REPO"),
-      },
-      slack: {
-        configured: hasAllConfigured("SLACK_BOT_TOKEN", "SLACK_SIGNING_SECRET", "SLACK_APPROVALS_CHANNEL"),
-      },
-      email: {
-        configured:
-          hasAnyConfigured("EMAIL_FROM") &&
-          (hasAnyConfigured("RESEND_API_KEY") ||
-            hasAllConfigured("SMTP_HOST", "SMTP_USER", "SMTP_PASS")),
-      },
+      claude: { configured: isConfigured("claude") },
+      gemini: { configured: isConfigured("gemini") },
+      github: { configured: isConfigured("github") },
+      slack: { configured: isConfigured("slack") },
+      email: { configured: isConfigured("email") },
     },
     orchestration: "Manual workflow tracking. Autonomous agent execution is not enabled.",
   };

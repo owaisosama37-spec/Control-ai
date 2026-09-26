@@ -1,2 +1,3 @@
 - [Team sharing boundary](team-sharing.md) — preserve private ownership when adding collaboration; sharing is explicit and legacy data stays quarantined.
 - [Atlas from Replit](mongodb-atlas.md) — Replit egress is dynamic; keep TLS verification enabled and check network access before changing credentials.
+- [Integration admin boundary](integration-admin-boundary.md) — shared service credentials require an explicit app-level admin, never a room-owner role.
