@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Starfruit Control Room"
+description = "An AI delivery operations control room for coordinating projects, reviews, approval workflows, and audit activity across a software team."
+version = "1.0.0"
+id = "artifacts/starfruit-control-room"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22984
+
+[services.development]
+run = "pnpm --filter @workspace/starfruit-control-room run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/starfruit-control-room", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/starfruit-control-room/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22984"
+BASE_PATH = "/"
