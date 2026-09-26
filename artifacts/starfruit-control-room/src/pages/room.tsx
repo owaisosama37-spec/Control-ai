@@ -127,8 +127,15 @@ export function ActivityPage() {
 export function SettingsPage() {
   const {t}=useLocale();
   const query=useGetSystemStatus();
+  const integrationCards=[
+    {id:"claude",name:"Claude"},
+    {id:"gemini",name:"Gemini"},
+    {id:"github",name:"GitHub"},
+    {id:"slack",name:"Slack"},
+    {id:"email",name:"Email"},
+  ] as const;
   return <><Heading title="Connection health." description="Real connection state. No simulated agents or automatic actions." />{query.error ? <ErrorPanel error={query.error} retry={query.refetch} /> : query.isLoading ? <div className="skeleton" /> : query.data && <>
-    <section className="panel mb-6"><div className="row"><div className="flex items-center gap-4"><Database size={20} className="text-primary" /><div><strong>MongoDB</strong><div className="row-meta mt-1">{t("Persistent project and signed event storage")}</div></div></div><Badge status={query.data.database} /></div><div className="row"><div className="flex items-center gap-4"><LockKeyhole size={20} className="text-primary" /><div><strong>{query.data.authentication} {t("authentication")}</strong><div className="row-meta mt-1">{t("Verified sign-in · Private account-scoped data")}</div></div></div><span className="pill connected">{t("Enabled")}</span></div></section>
-    <div className="eyebrow mb-4">{t("External services")}</div><div className="cards">{query.data.integrations.map(i=><section className="panel integration" key={i.name}><div className="flex justify-between"><Plug size={21} className="text-primary" /><Badge status={i.status} /></div><h3>{i.name}</h3><p>{t(i.description)}</p></section>)}</div><div className="notice mt-6">{t(query.data.orchestration)} {t("Connect these services securely through project setup before enabling notifications or repository actions. Never paste tokens into project descriptions.")}</div>
+    <section className="panel mb-6"><div className="row"><div className="flex items-center gap-4"><Database size={20} className="text-primary" /><div><strong>MongoDB</strong><div className="row-meta mt-1">{t("Persistent project and signed event storage")} · {query.data.dbName} · {t(query.data.environment)}</div></div></div><Badge status={query.data.database} /></div><div className="row"><div className="flex items-center gap-4"><LockKeyhole size={20} className="text-primary" /><div><strong>{query.data.authentication} {t("authentication")}</strong><div className="row-meta mt-1">{t("Verified sign-in · Private account-scoped data")}</div></div></div><span className="pill connected">{t(query.data.clerkMode)}</span></div></section>
+    <div className="eyebrow mb-4">{t("External services")}</div><div className="cards">{integrationCards.map(i=>{const configured=query.data.integrations[i.id].configured;return <section className="panel integration" key={i.id}><div className="flex justify-between"><Plug size={21} className="text-primary" /><Badge status={configured?"configured":"not_connected"} /></div><h3>{i.name}</h3><p>{t(configured?"Configuration is present; connection has not been tested.":"Configuration is incomplete; connect this service in a later phase.")}</p></section>})}</div><div className="notice mt-6">{t(query.data.orchestration)} {t("Connection status reflects credential configuration only; it does not verify provider access or enable actions.")}</div>
   </>}</>;
 }

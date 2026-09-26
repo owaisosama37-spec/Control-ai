@@ -12,12 +12,17 @@
  *
  * OpenAPI spec version: 0.1.0
  */
-import type { IntegrationStatus } from './integrationStatus';
+import type { SystemIntegrations } from './systemIntegrations';
+import type { SystemStatusClerkMode } from './systemStatusClerkMode';
 import type { SystemStatusDatabase } from './systemStatusDatabase';
+import type { SystemStatusEnvironment } from './systemStatusEnvironment';
 
 export interface SystemStatus {
   database: SystemStatusDatabase;
+  dbName: string;
+  environment: SystemStatusEnvironment;
   authentication: string;
+  clerkMode: SystemStatusClerkMode;
   orchestration: string;
-  integrations: IntegrationStatus[];
+  integrations: SystemIntegrations;
 }

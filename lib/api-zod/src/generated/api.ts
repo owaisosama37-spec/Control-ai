@@ -324,13 +324,28 @@ export const ListActivityResponse = zod.array(ListActivityResponseItem)
 
 export const GetSystemStatusResponse = zod.object({
   "database": zod.enum(['connected', 'unavailable']),
+  "dbName": zod.string(),
+  "environment": zod.enum(['development', 'production', 'test']),
   "authentication": zod.string(),
+  "clerkMode": zod.enum(['development', 'production']),
   "orchestration": zod.string(),
-  "integrations": zod.array(zod.object({
-  "name": zod.string(),
-  "status": zod.enum(['connected', 'not_connected', 'unavailable']),
-  "description": zod.string()
-}))
+  "integrations": zod.object({
+  "claude": zod.object({
+  "configured": zod.boolean()
+}),
+  "gemini": zod.object({
+  "configured": zod.boolean()
+}),
+  "github": zod.object({
+  "configured": zod.boolean()
+}),
+  "slack": zod.object({
+  "configured": zod.boolean()
+}),
+  "email": zod.object({
+  "configured": zod.boolean()
+})
+})
 })
 
 

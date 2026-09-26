@@ -161,6 +161,18 @@ export interface IntegrationStatus {
   description: string;
 }
 
+export interface ConfiguredIntegration {
+  configured: boolean;
+}
+
+export interface SystemIntegrations {
+  claude: ConfiguredIntegration;
+  gemini: ConfiguredIntegration;
+  github: ConfiguredIntegration;
+  slack: ConfiguredIntegration;
+  email: ConfiguredIntegration;
+}
+
 export type SystemStatusDatabase = typeof SystemStatusDatabase[keyof typeof SystemStatusDatabase];
 
 
@@ -169,11 +181,31 @@ export const SystemStatusDatabase = {
   unavailable: 'unavailable',
 } as const;
 
+export type SystemStatusEnvironment = typeof SystemStatusEnvironment[keyof typeof SystemStatusEnvironment];
+
+
+export const SystemStatusEnvironment = {
+  development: 'development',
+  production: 'production',
+  test: 'test',
+} as const;
+
+export type SystemStatusClerkMode = typeof SystemStatusClerkMode[keyof typeof SystemStatusClerkMode];
+
+
+export const SystemStatusClerkMode = {
+  development: 'development',
+  production: 'production',
+} as const;
+
 export interface SystemStatus {
   database: SystemStatusDatabase;
+  dbName: string;
+  environment: SystemStatusEnvironment;
   authentication: string;
+  clerkMode: SystemStatusClerkMode;
   orchestration: string;
-  integrations: IntegrationStatus[];
+  integrations: SystemIntegrations;
 }
 
 export interface HealthStatus {

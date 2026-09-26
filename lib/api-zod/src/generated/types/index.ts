@@ -14,6 +14,7 @@
  */
 
 export * from './activity';
+export * from './configuredIntegration';
 export * from './dashboard';
 export * from './healthStatus';
 export * from './integrationStatus';
@@ -28,6 +29,9 @@ export * from './roomAccess';
 export * from './roomAccessRole';
 export * from './roomMember';
 export * from './roomMemberRole';
+export * from './systemIntegrations';
 export * from './systemStatus';
+export * from './systemStatusClerkMode';
 export * from './systemStatusDatabase';
+export * from './systemStatusEnvironment';
 export * from './transitionInput';

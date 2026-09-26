@@ -1,7 +1,9 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { assertConfig } from "./lib/config";
 import { connectMongo } from "./lib/mongo";
 
+assertConfig();
 void connectMongo().catch(() => { /* API returns an explicit 503 until connectivity recovers. */ });
 
 const rawPort = process.env["PORT"];

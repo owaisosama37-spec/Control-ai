@@ -99,6 +99,7 @@ button:disabled { opacity: .45; cursor: wait; }
 .pill.approved_plan { color: #b6cfec; background: #26333f; }
 .pill.awaiting_review { color: #f0cf86; background: #393320; }
 .pill.merged,.pill.connected { color: #cde697; background: #303c24; }
+.pill.configured { color: #cde697; background: #303c24; }
 .pill.rejected,.pill.unavailable { color: #e8a3a3; background: #3b2827; }
 .empty { text-align: center; padding: 48px 24px; color: #91a08e; }
 .empty svg { margin: 0 auto 15px; color: #6d8160; }

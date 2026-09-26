@@ -243,14 +243,31 @@ components:
         name: { type: string }
         status: { type: string, enum: [connected, not_connected, unavailable] }
         description: { type: string }
+    ConfiguredIntegration:
+      type: object
+      required: [configured]
+      properties:
+        configured: { type: boolean }
+    SystemIntegrations:
+      type: object
+      required: [claude, gemini, github, slack, email]
+      properties:
+        claude: { $ref: "#/components/schemas/ConfiguredIntegration" }
+        gemini: { $ref: "#/components/schemas/ConfiguredIntegration" }
+        github: { $ref: "#/components/schemas/ConfiguredIntegration" }
+        slack: { $ref: "#/components/schemas/ConfiguredIntegration" }
+        email: { $ref: "#/components/schemas/ConfiguredIntegration" }
     SystemStatus:
       type: object
-      required: [database, authentication, integrations, orchestration]
+      required: [database, dbName, environment, authentication, clerkMode, integrations, orchestration]
       properties:
         database: { type: string, enum: [connected, unavailable] }
+        dbName: { type: string }
+        environment: { type: string, enum: [development, production, test] }
         authentication: { type: string }
+        clerkMode: { type: string, enum: [development, production] }
         orchestration: { type: string }
-        integrations: { type: array, items: { $ref: "#/components/schemas/IntegrationStatus" } }
+        integrations: { $ref: "#/components/schemas/SystemIntegrations" }
     HealthStatus:
       type: object
       properties:

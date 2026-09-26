@@ -1,25 +1,68 @@
 import { Router } from "express";
 import { getAuth, clerkClient } from "@clerk/express";
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
 import { CreateProjectBody, UpdateProjectBody, TransitionProjectBody, SaveMemberBody } from "@workspace/api-zod";
 import { connectMongo, mongoose } from "../lib/mongo";
+import { getClerkMode, getRuntimeEnvironment } from "../lib/config";
 import { ProjectModel, serializeProject, event, activity, transitions } from "../lib/projects";
 import { Membership } from "../lib/teams";
 import { allows, roomFilter } from "../lib/permissions";
 
 const router = Router();
 
+const configuredIntegrationSchema = z.object({ configured: z.boolean() });
+const systemStatusSchema = z.object({
+  database: z.enum(["connected", "unavailable"]),
+  dbName: z.string(),
+  environment: z.enum(["development", "production", "test"]),
+  authentication: z.literal("Clerk"),
+  clerkMode: z.enum(["development", "production"]),
+  integrations: z.object({
+    claude: configuredIntegrationSchema,
+    gemini: configuredIntegrationSchema,
+    github: configuredIntegrationSchema,
+    slack: configuredIntegrationSchema,
+    email: configuredIntegrationSchema,
+  }),
+  orchestration: z.string(),
+});
+
+const hasAnyConfigured = (...names: string[]) =>
+  names.some((name) => Boolean(process.env[name]?.trim()));
+const hasAllConfigured = (...names: string[]) =>
+  names.every((name) => Boolean(process.env[name]?.trim()));
+
 router.get("/system/status", (_req, res) => {
-  res.json({
+  const status = {
     database: mongoose.connection.readyState === 1 ? "connected" : "unavailable",
+    dbName: process.env.MONGODB_DB_NAME?.trim() || "test",
+    environment: getRuntimeEnvironment(),
     authentication: "Clerk",
+    clerkMode: getClerkMode(),
+    integrations: {
+      claude: {
+        configured: hasAnyConfigured("AI_INTEGRATIONS_ANTHROPIC_API_KEY", "ANTHROPIC_API_KEY"),
+      },
+      gemini: {
+        configured: hasAnyConfigured("AI_INTEGRATIONS_GEMINI_API_KEY", "GEMINI_API_KEY"),
+      },
+      github: {
+        configured: hasAllConfigured("GITHUB_TOKEN", "GITHUB_WEBHOOK_SECRET", "GITHUB_REPO"),
+      },
+      slack: {
+        configured: hasAllConfigured("SLACK_BOT_TOKEN", "SLACK_SIGNING_SECRET", "SLACK_APPROVALS_CHANNEL"),
+      },
+      email: {
+        configured:
+          hasAnyConfigured("EMAIL_FROM") &&
+          (hasAnyConfigured("RESEND_API_KEY") ||
+            hasAllConfigured("SMTP_HOST", "SMTP_USER", "SMTP_PASS")),
+      },
+    },
     orchestration: "Manual workflow tracking. Autonomous agent execution is not enabled.",
-    integrations: [
-      { name: "GitHub", status: "not_connected", description: "Repository automation requires an authorized GitHub connection." },
-      { name: "Slack", status: "not_connected", description: "Approval notifications require an authorized Slack connection." },
-      { name: "Email", status: "not_connected", description: "SMTP delivery has not been configured or verified." },
-    ],
-  });
+  };
+  res.json(systemStatusSchema.parse(status));
 });
 
 router.use((req, res, next) => {
