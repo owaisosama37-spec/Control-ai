@@ -81,6 +81,8 @@ const arabic: Record<string, string> = {
   "The request failed. Please try again.":"فشل الطلب. حاول مجددًا.", "Saving…":"جارٍ الحفظ…", "Save changes":"حفظ التغييرات", "Create project":"إنشاء المشروع",
   "Sign in to access your control room.":"سجّل دخولك للوصول إلى غرفة التحكم.",
   "MongoDB is unavailable. Check your Atlas connection and network access, then retry.":"اتصال MongoDB غير متاح. راجع اتصال Atlas وإعدادات الوصول للشبكة ثم حاول مجددًا.",
+  "This section is unavailable until MongoDB reconnects.":"هذا القسم غير متاح حتى يعود الاتصال بـ MongoDB.",
+  "We couldn't refresh your project data.":"تعذّر تحديث بيانات المشاريع.",
   "Project not found.":"المشروع غير موجود.", "The project has changed. Refresh before continuing.":"تغيّر المشروع. حدّث الصفحة قبل المتابعة.",
   "A rejection reason is required.":"سبب الرفض مطلوب.", "This status transition is not allowed.":"الانتقال إلى هذه المرحلة غير مسموح.",
   "Enter a project name and valid project details.":"أدخل اسم المشروع وتفاصيل صحيحة.",
