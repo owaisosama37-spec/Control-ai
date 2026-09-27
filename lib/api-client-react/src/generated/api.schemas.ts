@@ -178,6 +178,8 @@ export interface Dashboard {
 
 export interface Activity {
   id: string;
+  /** Clerk ID of the actor who performed the action. */
+  actor_id: string;
   action: string;
   project_id: string;
   project_name: string;

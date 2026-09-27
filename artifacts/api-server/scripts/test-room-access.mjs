@@ -14,7 +14,7 @@ const records = [];
 const roomControls = [];
 let calls = [];
 const matches = (r, f) => Object.entries(f).every(([k, v]) => v === null ? r[k] == null : r[k] === v);
-const query = value => ({ select() { return this; }, sort() { return this; }, lean: async () => value, then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
+const query = value => ({ select() { return this; }, sort() { return this; }, session() { return this; }, lean: async () => structuredClone(value), then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
 const Membership = {
   find: f => query(memberships.filter(r => matches(r, f))),
   findOne: f => query(memberships.find(r => matches(r, f))),
@@ -22,6 +22,10 @@ const Membership = {
   findOneAndUpdate: async (f, update) => {
     const m = memberships.find(r => matches(r, f));
     if (m) Object.assign(m, update.$set); else memberships.push({ ...f, ...update.$set });
+  },
+  findOneAndDelete: f => {
+    const i = memberships.findIndex(r => matches(r, f));
+    return query(i >= 0 ? memberships.splice(i, 1)[0] : null);
   },
   deleteOne: async f => { const i = memberships.findIndex(r => matches(r, f)); if (i >= 0) memberships.splice(i, 1); },
 };
@@ -63,10 +67,21 @@ globalThis.__roomTest = {
     if (id === "user_missing") throw Object.assign(new Error(), { status: 404 });
     return { id };
   } } },
-  connectMongo: async () => {}, mongoose: { connection: { readyState: 1 } },
+  connectMongo: async () => {}, mongoose: { connection: { readyState: 1,
+    transaction: async fn => {
+      const beforeMembers = structuredClone(memberships);
+      const beforeControls = structuredClone(roomControls);
+      try { return await fn({}); }
+      catch (error) {
+        memberships.splice(0, memberships.length, ...beforeMembers);
+        roomControls.splice(0, roomControls.length, ...beforeControls);
+        throw error;
+      }
+    },
+  } },
   Membership, ProjectModel, RoomControl,
   serializeProject: p => ({ project_id: p.project_id, name: p.name, status: p.status }),
-  event: actor => ({ actor }), activity: e => e,
+  event: (actor, id, name, action, description) => ({ actor, project_id: id, project_name: name, action, description }), activity: e => e,
   transitions: { draft: ["approved_plan", "rejected"], approved_plan: ["awaiting_review"], awaiting_review: ["merged", "rejected"], rejected: ["draft"], merged: ["paused"], paused: ["merged"] },
   logger: { warn() {}, error() {}, info() {} },
 };
@@ -125,6 +140,10 @@ try {
     for (const role of ["viewer", "editor", "reviewer"]) {
       assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: `user_${role}`, role })).status, 200);
     }
+    const control = roomControls.find(r => r.owner_id === "user_owner");
+    assert.equal(control.room_events.filter(e => e.action === "member_granted").length, 3);
+    assert.equal(control.room_events[0].description, "user_viewer: none → viewer");
+    assert.equal(control.room_events.at(-1).actor, "user_owner");
     assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: "user_missing", role: "viewer" })).status, 400);
     assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: "user_other", role: "owner" })).status, 400);
     assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: "user_owner", role: "viewer" })).status, 400);
@@ -181,11 +200,35 @@ try {
     assert.equal((await (await request("GET", "/operations", "user_owner")).json()).stopped, false);
     assert.equal((await request("POST", "/projects", "user_owner", null, input)).status, 201);
   });
+  await test("membership change rolls back if its audit write fails", async () => {
+    const original = RoomControl.findOneAndUpdate;
+    const role = memberships.find(m => m.user_id === "user_editor").role;
+    RoomControl.findOneAndUpdate = async () => { throw new Error("Audit write unavailable"); };
+    try {
+      assert.equal((await request("PUT", "/members", "user_owner", null,
+        { user_id: "user_editor", role: "viewer" })).status, 500);
+      assert.equal(memberships.find(m => m.user_id === "user_editor").role, role);
+    } finally {
+      RoomControl.findOneAndUpdate = original;
+    }
+  });
   await test("role changes and revocation take effect on next request; room list is identity scoped", async () => {
     assert.equal((await (await request("GET", "/rooms", "user_viewer")).json()).length, 2);
-    await request("PUT", "/members", "user_owner", null, { user_id: "user_editor", role: "viewer" });
+    const audit = roomControls.find(r => r.owner_id === "user_owner").room_events;
+    const before = audit.length;
+    assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: "user_editor", role: "viewer" })).status, 200);
+    assert.equal(audit.length, before + 1);
+    assert.equal(audit.at(-1).actor, "user_owner");
+    assert.equal(audit.at(-1).description, "user_editor: editor → viewer");
+    assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: "user_editor", role: "viewer" })).status, 200);
+    assert.equal(audit.length, before + 1);
     assert.equal((await request("POST", "/projects", "user_editor", "user_owner", input)).status, 403);
-    await request("DELETE", "/members/user_viewer", "user_owner");
+    assert.equal((await request("DELETE", "/members/user_viewer", "user_owner")).status, 204);
+    assert.equal(audit.at(-1).actor, "user_owner");
+    assert.equal(audit.at(-1).description, "user_viewer: viewer → none");
+    assert.equal(audit.length, before + 2);
+    assert.equal((await request("DELETE", "/members/user_viewer", "user_owner")).status, 204);
+    assert.equal(audit.length, before + 2);
     assert.equal((await request("GET", "/projects", "user_viewer", "user_owner")).status, 403);
     assert.equal((await (await request("GET", "/rooms", "user_viewer")).json()).length, 1);
     assert.equal((await request("GET", "/projects", "user_viewer")).status, 200);

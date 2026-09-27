@@ -374,9 +374,10 @@ components:
         spent: { type: number }
     Activity:
       type: object
-      required: [id, action, project_id, project_name, description, created_at, verified]
+      required: [id, actor_id, action, project_id, project_name, description, created_at, verified]
       properties:
         id: { type: string }
+        actor_id: { type: string, description: "Clerk ID of the actor who performed the action." }
         action: { type: string }
         project_id: { type: string }
         project_name: { type: string }

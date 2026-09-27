@@ -6,3 +6,4 @@
 - [Slack connector boundary](slack-connector-boundary.md) — OAuth Web API access cannot stand in for an incoming Slack app or trusted user-to-room identity mapping.
 - [Resend send-only grants](resend-send-only.md) — a connected send-only key may send email but cannot list or verify sender domains; require a confirmed sender.
 - [Workspace restart check](workspace-restart-check.md) — after an unexpected workspace restart, confirm recent edits still exist before trusting earlier checks.
+- [Isolated Mongo test fidelity](isolated-mongo-tests.md) — mock detached reads and transaction rollback before trusting role/audit route failures.

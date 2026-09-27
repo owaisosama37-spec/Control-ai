@@ -36,6 +36,7 @@ try {
     const signed = event("user_owner", "PRJ-PILOT", "Local pilot", "project_created", "Created locally.");
     const verified = activity(signed);
     assert.equal(verified.verified, true);
+    assert.equal(verified.actor_id, "user_owner");
     assert.equal(verified.project_id, "PRJ-PILOT");
     assert.equal(verified.action, "project_created");
     assert.equal(verified.description, "Created locally.");
@@ -47,6 +48,16 @@ try {
     const changedSignature = { ...signed, signature: "0".repeat(64) };
     assert.equal(activity(changedPayload).verified, false);
     assert.equal(activity(changedSignature).verified, false);
+  });
+
+  await test("team membership audit identifies the actor, member and role change", () => {
+    const signed = event("user_owner", "TEAM", "Room members", "member_granted",
+      "user_teammate: none → reviewer");
+    const verified = activity(signed);
+    assert.equal(verified.verified, true);
+    assert.equal(verified.actor_id, "user_owner");
+    assert.equal(verified.project_id, "TEAM");
+    assert.equal(verified.description, "user_teammate: none → reviewer");
   });
 
   await test("verification fails under a different signing key", () => {

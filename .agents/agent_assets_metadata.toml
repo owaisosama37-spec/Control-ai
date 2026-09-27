@@ -14,3 +14,17 @@ mtime_ms = 1790498483323
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:6a531eb2-c806-4c50-bfe2-01fefdf28c81/3b163fa5-a964-4a5c-93e3-56df9235dcbf/2205d01e-7f6e-4567-a858-6161c540b2c0"
 storage_version_token = "1790498550701206"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "aM7M9_Ahqrp2R2314I6eM"
+uri = "file://OWNER_ACTIONS.md"
+type = "text"
+title = "المطلوب منك لاستكمال المشروع"
+description = "الخطوات والقرارات التي لا أستطيع حسمها بدلًا منك."
+logical_id = "470e640f-a99a-4311-8a16-85aaa92cf49a"
+content_hash = "sha256:5061a3087e6fa8e05624c5b985d340d5ca6d923955d0822125ab42ffba0c27e0"
+size = 6515
+mtime_ms = 1790500362068
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:6a531eb2-c806-4c50-bfe2-01fefdf28c81/470e640f-a99a-4311-8a16-85aaa92cf49a/7fdbb84d-ed7d-46bf-b88c-357090f724d3"
+storage_version_token = "1790500605351148"
+content_type = "text/markdown"

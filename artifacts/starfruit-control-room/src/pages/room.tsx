@@ -32,7 +32,7 @@ function ActivityList({items}:{items:Activity[]}) {
     const match=value.match(/^(draft|approved_plan|awaiting_review|merged|paused|rejected) → (draft|approved_plan|awaiting_review|merged|paused|rejected)(: (.*))?$/);
     return match ? `${t(labels[match[1] as ProjectStatus])} ← ${t(labels[match[2] as ProjectStatus])}${match[4] ? `: ${match[4]}` : ""}` : t(value);
   };
-  return <div className="timeline">{items.map(e=><div key={e.id} className="timeline-item" data-testid={`activity-${e.id}`}><div className="timeline-icon"><FileCheck2 size={15} /></div><div className="min-w-0"><p><strong>{e.project_name}</strong><br />{describe(e.description)}</p><small>{date(e.created_at,language)} · {t(e.verified ? "Signature verified" : "Signature could not be verified")}</small></div></div>)}</div>;
+  return <div className="timeline">{items.map(e=><div key={e.id} className="timeline-item" data-testid={`activity-${e.id}`}><div className="timeline-icon"><FileCheck2 size={15} /></div><div className="min-w-0"><p><strong>{e.project_name}</strong><br />{describe(e.description)}</p><small className="break-all">{date(e.created_at,language)} · {language === "ar" ? "بواسطة" : "by"} {e.actor_id} · {t(e.verified ? "Signature verified" : "Signature could not be verified")}</small></div></div>)}</div>;
 }
 export function DashboardPage() {
   const { canEdit } = useRoomAccess();

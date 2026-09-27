@@ -54,7 +54,7 @@ export function activity(e: any) {
   const verified = actual.length === expected.length && timingSafeEqual(actual, expected);
   const record = JSON.parse(e.payload);
   return {
-    id: record.id, project_id: record.project_id, project_name: record.project_name,
+    id: record.id, actor_id: record.owner, project_id: record.project_id, project_name: record.project_name,
     action: record.action, description: record.description, created_at: record.created_at, verified,
   };
 }

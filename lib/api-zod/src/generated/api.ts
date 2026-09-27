@@ -361,6 +361,7 @@ export const GetDashboardResponse = zod.object({
 
 export const ListActivityResponseItem = zod.object({
   "id": zod.string(),
+  "actor_id": zod.string().describe('Clerk ID of the actor who performed the action.'),
   "action": zod.string(),
   "project_id": zod.string(),
   "project_name": zod.string(),

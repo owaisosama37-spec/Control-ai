@@ -158,16 +158,58 @@ router.put("/members", async (req, res) => {
     res.status(error.status === 404 ? 400 : 503).json({ error: error.status === 404 ? "This account does not exist. Ask the member to sign up first." : "Unable to verify the account. Retry later." }); return;
   }
   await Membership.init();
-  await Membership.findOneAndUpdate({ owner_id: res.locals.owner, user_id },
-    { $set: { role } }, { upsert: true, runValidators: true });
+  await RoomControl.init();
+  try {
+    await mongoose.connection.transaction(async session => {
+      const filter = { owner_id: res.locals.owner, user_id };
+      const previous = await Membership.findOne(filter).session(session).lean();
+      if (previous?.role === role) return;
+      await Membership.findOneAndUpdate(filter, { $set: { role } },
+        { upsert: true, runValidators: true, session });
+      await RoomControl.findOneAndUpdate({ owner_id: res.locals.owner, stopped_at: null },
+        { $push: { room_events: event(res.locals.actor, "TEAM", "Room members", previous ? "member_role_changed" : "member_granted",
+          `${user_id}: ${previous?.role ?? "none"} → ${role}`) } },
+        { upsert: true, runValidators: true, session });
+    });
+  } catch (error: unknown) {
+    if ((error as { code?: number }).code === 11000) {
+      const control = await RoomControl.findOne({ owner_id: res.locals.owner }).select("stopped_at").lean();
+      res.status(control?.stopped_at ? 423 : 409).json({ error: control?.stopped_at
+        ? "Emergency stop is active. Only the room owner can resume changes."
+        : "A concurrent membership change occurred. Retry the request." }); return;
+    }
+    throw error;
+  }
   res.json({ user_id, role });
 });
 
 router.delete("/members/:userId", async (req, res) => {
-  if (req.params.userId === res.locals.owner) {
+  const userId = String(req.params.userId);
+  if (userId === res.locals.owner) {
     res.status(400).json({ error: "The room owner cannot be removed." }); return;
   }
-  await Membership.deleteOne({ owner_id: res.locals.owner, user_id: req.params.userId });
+  if (!/^user_[a-zA-Z0-9]+$/.test(userId)) {
+    res.status(400).json({ error: "Invalid member identifier." }); return;
+  }
+  await RoomControl.init();
+  try {
+    await mongoose.connection.transaction(async session => {
+      const previous = await Membership.findOneAndDelete({ owner_id: res.locals.owner, user_id: userId }).session(session);
+      if (!previous) return;
+      await RoomControl.findOneAndUpdate({ owner_id: res.locals.owner, stopped_at: null },
+        { $push: { room_events: event(res.locals.actor, "TEAM", "Room members", "member_removed",
+          `${userId}: ${previous.role} → none`) } },
+        { upsert: true, runValidators: true, session });
+    });
+  } catch (error: unknown) {
+    if ((error as { code?: number }).code === 11000) {
+      const control = await RoomControl.findOne({ owner_id: res.locals.owner }).select("stopped_at").lean();
+      res.status(control?.stopped_at ? 423 : 409).json({ error: control?.stopped_at
+        ? "Emergency stop is active. Only the room owner can resume changes."
+        : "A concurrent membership change occurred. Retry the request." }); return;
+    }
+    throw error;
+  }
   res.status(204).end();
 });
 
