@@ -15,10 +15,13 @@ and signed activity, based on the supplied Starfruit archive.
 - Dashboard totals computed from stored projects.
 - Signed project, task, team-membership and room-control activity.
 - Connection status with explicit unconfigured integration states.
+- Manual Claude architecture drafting/revision and Gemini review/implementation-note
+  validation. Outputs are stored for human review; none of these actions approves
+  a plan, executes code, or changes task status automatically.
 
 ## Not enabled
-Autonomous AI execution, model-generated plans or reviews, isolated-code workers,
-branch/PR creation, real GitHub merge, Slack notifications or commands, email,
+Autonomous AI execution, isolated-code workers,
+branch/PR creation, real GitHub merge, Slack notifications or commands, automated email,
 night runs, token/cost enforcement, and legacy-data import.
 GitHub webhook signatures can be checked, but PR events are acknowledged without
 changing projects. Task approval and project status changes are records only:

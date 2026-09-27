@@ -26,7 +26,7 @@ JWT_SECRET=<generate-random-secret>
 HMAC_SECRET=<generate-random-secret>
 
 # Database (Use Replit Database or MongoDB Atlas)
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/starfruit-control-room
+MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/starfruit-control-room
 
 # GitHub Integration
 GITHUB_TOKEN=<your-github-token>

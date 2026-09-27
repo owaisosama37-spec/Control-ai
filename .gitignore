@@ -47,3 +47,8 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Local credentials; keep only the documented blank template.
+.env
+.env.*
+!.env.example

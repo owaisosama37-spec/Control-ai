@@ -12,11 +12,12 @@ const architectureSystem = [
 function claudeClient() {
   const proxyKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY?.trim();
   const proxyBase = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL?.trim();
-  const apiKey = proxyKey || process.env.ANTHROPIC_API_KEY?.trim();
+  const proxy = proxyKey && proxyBase ? { apiKey: proxyKey, baseURL: proxyBase } : null;
+  const apiKey = proxy?.apiKey ?? process.env.ANTHROPIC_API_KEY?.trim();
   if (!apiKey) throw new Error("Claude is not configured.");
   return new Anthropic({
     apiKey,
-    ...(proxyBase ? { baseURL: proxyBase } : {}),
+    ...(proxy ? { baseURL: proxy.baseURL } : {}),
     timeout: 45_000,
     maxRetries: 0,
   });
@@ -25,11 +26,12 @@ function claudeClient() {
 function geminiClient() {
   const proxyKey = process.env.AI_INTEGRATIONS_GEMINI_API_KEY?.trim();
   const proxyBase = process.env.AI_INTEGRATIONS_GEMINI_BASE_URL?.trim();
-  const apiKey = proxyKey || process.env.GEMINI_API_KEY?.trim();
+  const proxy = proxyKey && proxyBase ? { apiKey: proxyKey, baseUrl: proxyBase } : null;
+  const apiKey = proxy?.apiKey ?? process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) throw new Error("Gemini is not configured.");
   return new GoogleGenAI({
     apiKey,
-    httpOptions: { ...(proxyBase ? { baseUrl: proxyBase } : {}), timeout: 45_000 },
+    httpOptions: { ...(proxy ? { baseUrl: proxy.baseUrl } : {}), timeout: 45_000 },
   });
 }
 
