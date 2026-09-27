@@ -9,3 +9,4 @@
 - [Isolated Mongo test fidelity](isolated-mongo-tests.md) — mock detached reads and transaction rollback before trusting role/audit route failures.
 - [Gemini generation verification](gemini-api-verification.md) — model listing or a one-word reply does not prove real review prompts work.
 - [Source export safety](source-export-safety.md) — scan final archives, including legacy examples, rather than trusting filename exclusions alone.
+- [Business integration deferral](business-integration-deferral.md) — finish the control-room app before testing the separate WhatsApp project on it.
