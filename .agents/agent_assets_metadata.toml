@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "0QnFR3bfrUFJiYMslVL14"
+uri = "file://PROJECT_OPEN_QUESTIONS.md"
+type = "text"
+title = "الأسئلة المفتوحة للمشروع"
+description = "ملف Markdown قابل للتنزيل يحتوي أسئلة استكمال غرفة التحكم."
+logical_id = "3b163fa5-a964-4a5c-93e3-56df9235dcbf"
+content_hash = "sha256:28761dc595ff8edd69a58d7302bc305abf98f32f4aa9f4c3c074a6cab3c05f49"
+size = 10088
+mtime_ms = 1790498483323
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:6a531eb2-c806-4c50-bfe2-01fefdf28c81/3b163fa5-a964-4a5c-93e3-56df9235dcbf/2205d01e-7f6e-4567-a858-6161c540b2c0"
+storage_version_token = "1790498550701206"
+content_type = "text/markdown"
