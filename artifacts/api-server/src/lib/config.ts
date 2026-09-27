@@ -8,7 +8,6 @@ const startupEnvironmentSchema = z.object({
   CLERK_PUBLISHABLE_KEY: z.string().optional(),
   VITE_CLERK_PUBLISHABLE_KEY: z.string().optional(),
   CLERK_SECRET_KEY: z.string().optional(),
-  PSEUDONYM_SECRET: z.string().optional(),
 });
 
 export function isProductionEnvironment() {
@@ -45,7 +44,6 @@ export function assertConfig() {
     if (!env.CLERK_SECRET_KEY?.startsWith("sk_live_")) {
       problems.push("Clerk secret key is not a production key");
     }
-    if (!env.PSEUDONYM_SECRET?.trim()) problems.push("PSEUDONYM_SECRET missing");
   }
 
   if (!problems.length) return;

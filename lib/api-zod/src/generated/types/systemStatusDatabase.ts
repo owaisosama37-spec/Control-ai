@@ -6,8 +6,9 @@
  * accept the optional x-room-owner request header containing a Clerk user ID.
  * Omit it to select the authenticated user's own room. A header is a selector,
  * not authorization: the server verifies explicit membership on every request.
- * Owners manage members and delete projects; editors create/edit and submit
- * work; reviewers approve/reject/pause/resume; viewers have read-only access.
+ *  Owners manage members, delete projects and approve final delivery;
+ *  editors create/edit and submit work; reviewers approve plans, reject, pause
+ *  and resume; viewers have read-only access.
  * GET /rooms always lists rooms for the authenticated identity.
  *
  * OpenAPI spec version: 0.1.0

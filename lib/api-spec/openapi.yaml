@@ -8,8 +8,9 @@ info:
     accept the optional x-room-owner request header containing a Clerk user ID.
     Omit it to select the authenticated user's own room. A header is a selector,
     not authorization: the server verifies explicit membership on every request.
-    Owners manage members and delete projects; editors create/edit and submit
-    work; reviewers approve/reject/pause/resume; viewers have read-only access.
+     Owners manage members, delete projects and approve final delivery;
+     editors create/edit and submit work; reviewers approve plans, reject, pause
+     and resume; viewers have read-only access.
     GET /rooms always lists rooms for the authenticated identity.
 servers:
   - url: /api
@@ -18,6 +19,45 @@ tags:
   - name: health
     description: Health operations
 paths:
+  /webhooks/github:
+    post:
+      operationId: receiveGitHubWebhook
+      description: |
+        Public GitHub delivery endpoint. Requires the SHA-256 signature of the
+        original request body and a matching configured repository. Ping is
+        acknowledged; other events are explicitly not applied to room projects.
+      parameters:
+        - { name: x-hub-signature-256, in: header, required: true, schema: { type: string } }
+        - { name: x-github-event, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GitHubWebhookPayload" }
+      responses:
+        "200":
+          description: Signed ping accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, event]
+                properties:
+                  accepted: { type: boolean }
+                  event: { type: string }
+        "202":
+          description: Signed event accepted but not applied to account-scoped projects
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accepted, processed]
+                properties:
+                  accepted: { type: boolean }
+                  processed: { type: boolean }
+        "401": { description: Invalid signature }
+        "403": { description: Unexpected repository }
+        "503": { description: Webhook configuration missing }
   /rooms:
     get:
       operationId: listRooms
@@ -27,6 +67,40 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { $ref: "#/components/schemas/RoomAccess" } }
+  /operations:
+    get:
+      operationId: getRoomOperations
+      description: Persistent emergency stop state for the selected room. No autonomous runner is installed.
+      responses:
+        "200":
+          description: Room operational state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomOperations" }
+  /emergency-stop:
+    post:
+      operationId: emergencyStop
+      description: Room owner only. Freezes room mutations and records a signed audit event.
+      responses:
+        "200":
+          description: Room stopped
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomOperations" }
+        "403": { description: Room owner required }
+        "409": { description: Room already stopped }
+  /emergency-resume:
+    post:
+      operationId: emergencyResume
+      description: Room owner only. Clears the emergency stop with a signed audit event.
+      responses:
+        "200":
+          description: Room resumed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RoomOperations" }
+        "403": { description: Room owner required }
+        "409": { description: Room not stopped }
   /members:
     get:
       operationId: listMembers
@@ -201,6 +275,9 @@ paths:
                 $ref: "#/components/schemas/HealthStatus"
 components:
   schemas:
+    GitHubWebhookPayload:
+      type: object
+      additionalProperties: true
     IntegrationAccess:
       type: object
       required: [isAdmin, needsSetup]
@@ -234,6 +311,13 @@ components:
       properties:
         owner_id: { type: string }
         role: { type: string, enum: [owner, editor, reviewer, viewer] }
+    RoomOperations:
+      type: object
+      required: [stopped, stopped_at, autonomous_execution]
+      properties:
+        stopped: { type: boolean }
+        stopped_at: { type: [string, "null"], format: date-time }
+        autonomous_execution: { type: boolean, description: "Always false until a real runner exists." }
     RoomMember:
       type: object
       required: [user_id, role]

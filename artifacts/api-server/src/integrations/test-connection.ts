@@ -3,6 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { clerkClient } from "@clerk/express";
 import { Resend } from "resend";
 import nodemailer from "nodemailer";
+import { ReplitConnectors } from "@replit/connectors-sdk";
 import type { IntegrationId } from "./registry";
 
 type TestResult = { ok: boolean; message: string };
@@ -59,33 +60,21 @@ async function testGitHub(): Promise<TestResult> {
     return { ok: false, message: "GITHUB_REPO must be in owner/repository format." };
   }
   const [owner, name] = repo.split("/");
-  const response = await fetch(`https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`, {
-    headers: {
-      Authorization: `Bearer ${process.env.GITHUB_TOKEN!.trim()}`,
-      Accept: "application/vnd.github+json",
-      "X-GitHub-Api-Version": "2022-11-28",
-      "User-Agent": "Starfruit-Control-Room",
-    },
-    signal: AbortSignal.timeout(15_000),
-    redirect: "error",
-  });
+  const response = await new ReplitConnectors().proxy(
+    "github", `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(name)}`, { method: "GET" },
+  );
   return response.ok
-    ? { ok: true, message: "GitHub repository access verified." }
-    : { ok: false, message: "GitHub could not access the configured repository. Check the token and repository permissions." };
+    ? { ok: true, message: "GitHub repository access verified. Incoming webhook delivery is not verified yet." }
+    : { ok: false, message: "GitHub could not access the configured repository through the connected account." };
 }
 
 async function testSlack(): Promise<TestResult> {
-  const response = await fetch("https://slack.com/api/auth.test", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${process.env.SLACK_BOT_TOKEN!.trim()}` },
-    signal: AbortSignal.timeout(15_000),
-    redirect: "error",
-  });
-  if (!response.ok) return { ok: false, message: "Slack authentication failed. Check the bot token." };
+  const response = await new ReplitConnectors().proxy("slack", "/auth.test", { method: "POST" });
+  if (!response.ok) return { ok: false, message: "Slack account access could not be verified." };
   const body = await response.json() as { ok?: boolean };
   return body.ok
-    ? { ok: true, message: "Slack bot authentication verified." }
-    : { ok: false, message: "Slack authentication failed. Check the bot token." };
+    ? { ok: true, message: "Slack account access verified. Incoming commands and approval notifications are not enabled." }
+    : { ok: false, message: "Slack account access could not be verified." };
 }
 
 async function testEmail(adminId: string): Promise<TestResult> {
@@ -101,7 +90,16 @@ async function testEmail(adminId: string): Promise<TestResult> {
     subject: "Starfruit connection test",
     text: "This is the connection test you requested from Starfruit Control Room.",
   };
-  if (process.env.RESEND_API_KEY?.trim()) {
+  if (process.env.RESEND_CONNECTOR_ENABLED === "true") {
+    const response = await new ReplitConnectors().proxy("resend", "/emails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(mail),
+    });
+    if (!response.ok) return { ok: false, message: "The email provider did not accept the test message. Check the sender and provider settings." };
+    const result = await response.json() as { id?: string };
+    if (!result.id) return { ok: false, message: "The email provider did not accept the test message. Check the sender and provider settings." };
+  } else if (process.env.RESEND_API_KEY?.trim()) {
     const { error } = await new Resend(process.env.RESEND_API_KEY.trim()).emails.send(mail);
     if (error) return { ok: false, message: "The email provider did not accept the test message. Check the sender and provider settings." };
   } else {

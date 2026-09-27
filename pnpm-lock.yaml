@@ -183,6 +183,9 @@ importers:
       '@google/genai':
         specifier: ^2.24.0
         version: 2.24.0
+      '@replit/connectors-sdk':
+        specifier: ^0.4.3
+        version: 0.4.3
       '@slack/web-api':
         specifier: ^6.13.0
         version: 6.13.0

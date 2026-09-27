@@ -7,6 +7,7 @@ import { connectMongo, mongoose } from "../lib/mongo";
 import { getClerkMode, getRuntimeEnvironment } from "../lib/config";
 import { ProjectModel, serializeProject, event, activity, transitions } from "../lib/projects";
 import { Membership } from "../lib/teams";
+import { RoomControl } from "../lib/room-control";
 import { allows, roomFilter } from "../lib/permissions";
 import { isConfigured } from "../integrations/registry";
 
@@ -89,14 +90,55 @@ router.use(async (req, res, next) => {
   res.locals.role = role;
   res.locals.scope = roomFilter(owner);
   if (!["GET", "HEAD", "OPTIONS"].includes(req.method)) {
-    const permission = req.path.startsWith("/members") ? "members" :
+    const permission = req.path === "/emergency-stop" || req.path === "/emergency-resume" ||
+      (req.path.endsWith("/status") && req.body?.status === "merged" && req.body?.expected_status === "awaiting_review") ? "delete" :
+      req.path.startsWith("/members") ? "members" :
       req.method === "DELETE" ? "delete" :
       req.path.endsWith("/status") && req.body?.status !== "awaiting_review" && req.body?.status !== "draft" ? "review" : "edit";
     if (!allows(role, permission)) {
       res.status(403).json({ error: "Your role does not permit this action." }); return;
     }
+    if (req.path !== "/emergency-stop" && req.path !== "/emergency-resume") {
+      const control = await RoomControl.findOne({ owner_id: owner }).select("stopped_at").lean();
+      if (control?.stopped_at) {
+        res.status(423).json({ error: "Emergency stop is active. Only the room owner can resume changes." }); return;
+      }
+    }
   }
   next();
+});
+
+router.get("/operations", async (_req, res) => {
+  const control = await RoomControl.findOne({ owner_id: res.locals.owner }).select("stopped_at").lean();
+  res.json({ stopped: Boolean(control?.stopped_at), stopped_at: control?.stopped_at?.toISOString() ?? null,
+    autonomous_execution: false });
+});
+
+router.post("/emergency-stop", async (_req, res) => {
+  await RoomControl.init();
+  const now = new Date();
+  const control = await RoomControl.findOneAndUpdate(
+    { owner_id: res.locals.owner, stopped_at: null },
+    { $set: { stopped_at: now, stopped_by: res.locals.actor },
+      $push: { room_events: event(res.locals.actor, "OPS", "Room controls", "emergency_stopped", "Emergency stop activated.") } },
+    { new: true, upsert: true, runValidators: true },
+  ).catch((error: unknown) => {
+    if ((error as { code?: number }).code === 11000) return null;
+    throw error;
+  });
+  if (!control) { res.status(409).json({ error: "Emergency stop is already active." }); return; }
+  res.json({ stopped: true, stopped_at: control.stopped_at.toISOString(), autonomous_execution: false });
+});
+
+router.post("/emergency-resume", async (_req, res) => {
+  const control = await RoomControl.findOneAndUpdate(
+    { owner_id: res.locals.owner, stopped_at: { $ne: null } },
+    { $set: { stopped_at: null, stopped_by: null },
+      $push: { room_events: event(res.locals.actor, "OPS", "Room controls", "emergency_resumed", "Emergency stop cleared by room owner.") } },
+    { new: true },
+  );
+  if (!control) { res.status(409).json({ error: "The room is not stopped." }); return; }
+  res.json({ stopped: false, stopped_at: null, autonomous_execution: false });
 });
 
 router.get("/members", async (_req, res) => {
@@ -226,12 +268,14 @@ router.get("/dashboard", async (_req, res) => {
 });
 
 router.get("/audit", async (_req, res) => {
-  const events = await ProjectModel.aggregate([
+  const [projectEvents, controlEvents] = await Promise.all([ProjectModel.aggregate([
     { $match: { owner_id: res.locals.owner } },
     { $unwind: "$room_events" },
     { $replaceRoot: { newRoot: "$room_events" } },
     { $sort: { created_at: -1 } }, { $limit: 200 },
-  ]);
+  ]), RoomControl.findOne({ owner_id: res.locals.owner }).select("room_events").lean()]);
+  const events = [...projectEvents, ...(controlEvents?.room_events ?? [])]
+    .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 200);
   res.json(events.map(activity));
 });
 

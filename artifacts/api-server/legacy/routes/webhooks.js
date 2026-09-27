@@ -1,6 +1,14 @@
-const express = require('express');
-const crypto = require('crypto');
+import express from 'express';
+import crypto from 'crypto';
+
 const router = express.Router();
+
+// Capture raw body for webhook signature verification
+export const captureWebhookBody = (req, res, buf, encoding) => {
+  if (req.path.includes('/api/webhooks')) {
+    req.rawBody = buf.toString(encoding || 'utf8');
+  }
+};
 
 // Verify webhook signature (HMAC SHA256)
 const verifyWebhookSignature = (rawBody, signature, secret) => {
@@ -81,4 +89,4 @@ router.post('/custom', (req, res) => {
   res.json({ status: 'received' });
 });
 
-module.exports = router;
+export default router;

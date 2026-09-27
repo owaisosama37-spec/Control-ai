@@ -6,8 +6,9 @@
  * accept the optional x-room-owner request header containing a Clerk user ID.
  * Omit it to select the authenticated user's own room. A header is a selector,
  * not authorization: the server verifies explicit membership on every request.
- * Owners manage members and delete projects; editors create/edit and submit
- * work; reviewers approve/reject/pause/resume; viewers have read-only access.
+ *  Owners manage members, delete projects and approve final delivery;
+ *  editors create/edit and submit work; reviewers approve plans, reject, pause
+ *  and resume; viewers have read-only access.
  * GET /rooms always lists rooms for the authenticated identity.
  *
  * OpenAPI spec version: 0.1.0
@@ -15,11 +16,59 @@
 import * as zod from 'zod';
 
 
+/**
+ * Public GitHub delivery endpoint. Requires the SHA-256 signature of the
+ * original request body and a matching configured repository. Ping is
+ * acknowledged; other events are explicitly not applied to room projects.
+ */
+export const ReceiveGitHubWebhookHeader = zod.object({
+  "x-hub-signature-256": zod.string(),
+  "x-github-event": zod.string()
+})
+
+export const ReceiveGitHubWebhookBody = zod.record(zod.string(), zod.unknown())
+
+export const ReceiveGitHubWebhookResponse = zod.object({
+  "accepted": zod.boolean(),
+  "event": zod.string()
+})
+
+
 export const ListRoomsResponseItem = zod.object({
   "owner_id": zod.string(),
   "role": zod.enum(['owner', 'editor', 'reviewer', 'viewer'])
 })
 export const ListRoomsResponse = zod.array(ListRoomsResponseItem)
+
+
+/**
+ * Persistent emergency stop state for the selected room. No autonomous runner is installed.
+ */
+export const GetRoomOperationsResponse = zod.object({
+  "stopped": zod.boolean(),
+  "stopped_at": zod.coerce.date().nullable(),
+  "autonomous_execution": zod.boolean().describe('Always false until a real runner exists.')
+})
+
+
+/**
+ * Room owner only. Freezes room mutations and records a signed audit event.
+ */
+export const EmergencyStopResponse = zod.object({
+  "stopped": zod.boolean(),
+  "stopped_at": zod.coerce.date().nullable(),
+  "autonomous_execution": zod.boolean().describe('Always false until a real runner exists.')
+})
+
+
+/**
+ * Room owner only. Clears the emergency stop with a signed audit event.
+ */
+export const EmergencyResumeResponse = zod.object({
+  "stopped": zod.boolean(),
+  "stopped_at": zod.coerce.date().nullable(),
+  "autonomous_execution": zod.boolean().describe('Always false until a real runner exists.')
+})
 
 
 export const ListMembersResponseItem = zod.object({

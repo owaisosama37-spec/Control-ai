@@ -18,3 +18,12 @@ expertMode = true
 [postMerge]
 path = "scripts/post-merge.sh"
 timeoutMs = 20000
+
+[userenv]
+
+[userenv.shared]
+GITHUB_REPO = "owaisosama37-spec/Control-ai"
+RESEND_CONNECTOR_ENABLED = "true"
+
+[userenv.development]
+INTEGRATIONS_ADMIN_USER_ID = "user_3Jrhw20qrZ5QYDhGc7mw6RJ78cK"

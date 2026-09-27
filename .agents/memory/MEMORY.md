@@ -3,3 +3,6 @@
 - [Integration admin boundary](integration-admin-boundary.md) — shared service credentials require an explicit app-level admin, never a room-owner role.
 - [PNPM dependency placement](pnpm-dependencies.md) — target the owning workspace package when adding dependencies; generic installers may modify the monorepo root.
 - [Legacy webhook boundary](legacy-webhooks.md) — local legacy webhook checks are not proof of delivery to the active account-scoped API.
+- [Slack connector boundary](slack-connector-boundary.md) — OAuth Web API access cannot stand in for an incoming Slack app or trusted user-to-room identity mapping.
+- [Resend send-only grants](resend-send-only.md) — a connected send-only key may send email but cannot list or verify sender domains; require a confirmed sender.
+- [Workspace restart check](workspace-restart-check.md) — after an unexpected workspace restart, confirm recent edits still exist before trusting earlier checks.

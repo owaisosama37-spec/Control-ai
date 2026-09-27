@@ -13,15 +13,18 @@ export const integrations: Record<IntegrationId, Definition> = {
     ["AI_INTEGRATIONS_GEMINI_BASE_URL", "AI_INTEGRATIONS_GEMINI_API_KEY"],
     ["GEMINI_API_KEY"],
   ] },
-  github: { required: ["GITHUB_TOKEN", "GITHUB_WEBHOOK_SECRET", "GITHUB_REPO"] },
+  github: { required: ["GITHUB_WEBHOOK_SECRET", "GITHUB_REPO"] },
   slack: { required: ["SLACK_BOT_TOKEN", "SLACK_SIGNING_SECRET", "SLACK_APPROVALS_CHANNEL"] },
   email: { required: ["EMAIL_FROM"], anyOf: [
+    ["RESEND_CONNECTOR_ENABLED"],
     ["RESEND_API_KEY"],
     ["SMTP_HOST", "SMTP_USER", "SMTP_PASS"],
   ] },
 };
 
-const present = (name: string) => Boolean(process.env[name]?.trim());
+const present = (name: string) => name === "RESEND_CONNECTOR_ENABLED"
+  ? process.env.RESEND_CONNECTOR_ENABLED === "true"
+  : Boolean(process.env[name]?.trim());
 
 export function getIntegrationConfiguration(id: IntegrationId) {
   const definition = integrations[id];

@@ -6,8 +6,9 @@
  * accept the optional x-room-owner request header containing a Clerk user ID.
  * Omit it to select the authenticated user's own room. A header is a selector,
  * not authorization: the server verifies explicit membership on every request.
- * Owners manage members and delete projects; editors create/edit and submit
- * work; reviewers approve/reject/pause/resume; viewers have read-only access.
+ *  Owners manage members, delete projects and approve final delivery;
+ *  editors create/edit and submit work; reviewers approve plans, reject, pause
+ *  and resume; viewers have read-only access.
  * GET /rooms always lists rooms for the authenticated identity.
  *
  * OpenAPI spec version: 0.1.0
@@ -29,6 +30,7 @@ import type {
 import type {
   Activity,
   Dashboard,
+  GitHubWebhookPayload,
   HealthStatus,
   IntegrationAccess,
   IntegrationConfiguration,
@@ -36,8 +38,11 @@ import type {
   MemberInput,
   Project,
   ProjectInput,
+  ReceiveGitHubWebhook200,
+  ReceiveGitHubWebhook202,
   RoomAccess,
   RoomMember,
+  RoomOperations,
   SystemStatus,
   TransitionInput
 } from './api.schemas';
@@ -68,6 +73,93 @@ const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKe
   }
   return result;
 };
+
+export const getReceiveGitHubWebhookUrl = () => {
+
+
+
+
+  return `/api/webhooks/github`
+}
+
+/**
+ * Public GitHub delivery endpoint. Requires the SHA-256 signature of the
+ * original request body and a matching configured repository. Ping is
+ * acknowledged; other events are explicitly not applied to room projects.
+ */
+export const receiveGitHubWebhook = async (gitHubWebhookPayload: GitHubWebhookPayload, options?: Parameters<typeof customFetch>[1]): Promise<ReceiveGitHubWebhook200 | ReceiveGitHubWebhook202> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<ReceiveGitHubWebhook200 | ReceiveGitHubWebhook202>(getReceiveGitHubWebhookUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(gitHubWebhookPayload)
+  }
+);}
+
+
+
+
+
+export const getReceiveGitHubWebhookMutationKey = () => ['receiveGitHubWebhook'] as const;
+
+export const getReceiveGitHubWebhookMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveGitHubWebhook>>, TError,ReceiveGitHubWebhookMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof receiveGitHubWebhook>>, TError,ReceiveGitHubWebhookMutationVariables, TContext> => {
+
+const mutationKey = getReceiveGitHubWebhookMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof receiveGitHubWebhook>>, ReceiveGitHubWebhookMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  receiveGitHubWebhook(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReceiveGitHubWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof receiveGitHubWebhook>>>
+    export type ReceiveGitHubWebhookMutationBody = BodyType<GitHubWebhookPayload>
+    export type ReceiveGitHubWebhookMutationError = ErrorType<void>
+    export type ReceiveGitHubWebhookMutationVariables = {data: BodyType<GitHubWebhookPayload>}
+
+    export const useReceiveGitHubWebhook = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof receiveGitHubWebhook>>, TError,ReceiveGitHubWebhookMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof receiveGitHubWebhook>>,
+        TError,
+        ReceiveGitHubWebhookMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReceiveGitHubWebhookMutationOptions(options));
+    }
 
 export const getListRoomsUrl = () => {
 
@@ -139,6 +231,222 @@ export function useListRooms<TData = Awaited<ReturnType<typeof listRooms>>, TErr
 
 
 
+
+export const getGetRoomOperationsUrl = () => {
+
+
+
+
+  return `/api/operations`
+}
+
+/**
+ * Persistent emergency stop state for the selected room. No autonomous runner is installed.
+ */
+export const getRoomOperations = async ( options?: Parameters<typeof customFetch>[1]): Promise<RoomOperations> => {
+
+  return customFetch<RoomOperations>(getGetRoomOperationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetRoomOperationsQueryKey = () => {
+    return [
+    `/api/operations`
+    ] as const;
+    }
+
+
+export const getGetRoomOperationsQueryOptions = <TData = Awaited<ReturnType<typeof getRoomOperations>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRoomOperations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetRoomOperationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getRoomOperations>>> = ({ signal }) => getRoomOperations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getRoomOperations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetRoomOperationsQueryResult = NonNullable<Awaited<ReturnType<typeof getRoomOperations>>>
+export type GetRoomOperationsQueryError = ErrorType<unknown>
+
+
+
+export function useGetRoomOperations<TData = Awaited<ReturnType<typeof getRoomOperations>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getRoomOperations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetRoomOperationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getEmergencyStopUrl = () => {
+
+
+
+
+  return `/api/emergency-stop`
+}
+
+/**
+ * Room owner only. Freezes room mutations and records a signed audit event.
+ */
+export const emergencyStop = async ( options?: Parameters<typeof customFetch>[1]): Promise<RoomOperations> => {
+
+  return customFetch<RoomOperations>(getEmergencyStopUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEmergencyStopMutationKey = () => ['emergencyStop'] as const;
+
+export const getEmergencyStopMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof emergencyStop>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof emergencyStop>>, TError,void, TContext> => {
+
+const mutationKey = getEmergencyStopMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof emergencyStop>>, void> = () => {
+
+
+          return  emergencyStop(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EmergencyStopMutationResult = NonNullable<Awaited<ReturnType<typeof emergencyStop>>>
+
+    export type EmergencyStopMutationError = ErrorType<void>
+
+
+    export const useEmergencyStop = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof emergencyStop>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof emergencyStop>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getEmergencyStopMutationOptions(options));
+    }
+
+export const getEmergencyResumeUrl = () => {
+
+
+
+
+  return `/api/emergency-resume`
+}
+
+/**
+ * Room owner only. Clears the emergency stop with a signed audit event.
+ */
+export const emergencyResume = async ( options?: Parameters<typeof customFetch>[1]): Promise<RoomOperations> => {
+
+  return customFetch<RoomOperations>(getEmergencyResumeUrl(),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getEmergencyResumeMutationKey = () => ['emergencyResume'] as const;
+
+export const getEmergencyResumeMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof emergencyResume>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof emergencyResume>>, TError,void, TContext> => {
+
+const mutationKey = getEmergencyResumeMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof emergencyResume>>, void> = () => {
+
+
+          return  emergencyResume(requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type EmergencyResumeMutationResult = NonNullable<Awaited<ReturnType<typeof emergencyResume>>>
+
+    export type EmergencyResumeMutationError = ErrorType<void>
+
+
+    export const useEmergencyResume = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof emergencyResume>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof emergencyResume>>,
+        TError,
+        void,
+        TContext
+      > => {
+      return useMutation(getEmergencyResumeMutationOptions(options));
+    }
 
 export const getListMembersUrl = () => {
 

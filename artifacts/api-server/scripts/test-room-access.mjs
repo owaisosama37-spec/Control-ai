@@ -11,6 +11,7 @@ import { pathToFileURL } from "node:url";
 
 const memberships = [];
 const records = [];
+const roomControls = [];
 let calls = [];
 const matches = (r, f) => Object.entries(f).every(([k, v]) => v === null ? r[k] == null : r[k] === v);
 const query = value => ({ select() { return this; }, sort() { return this; }, lean: async () => value, then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
@@ -38,6 +39,24 @@ const ProjectModel = {
   },
   aggregate: async pipeline => { calls.push(pipeline[0].$match); return []; },
 };
+const RoomControl = {
+  init: async () => {},
+  findOne: f => query(roomControls.find(r => r.owner_id === f.owner_id)),
+  findOneAndUpdate: async (f, u, options = {}) => {
+    let r = roomControls.find(r => r.owner_id === f.owner_id);
+    const matching = f.stopped_at === null ? !r?.stopped_at :
+      f.stopped_at?.$ne === null ? Boolean(r?.stopped_at) : true;
+    if (!matching) return null;
+    if (!r) {
+      if (!options.upsert) return null;
+      r = { owner_id: f.owner_id, room_events: [] };
+      roomControls.push(r);
+    }
+    Object.assign(r, u.$set);
+    if (u.$push) r.room_events.push(u.$push.room_events);
+    return r;
+  },
+};
 globalThis.__roomTest = {
   getAuth: req => ({ userId: req.get("test-identity") || null }),
   clerkClient: { users: { getUser: async id => {
@@ -45,10 +64,11 @@ globalThis.__roomTest = {
     return { id };
   } } },
   connectMongo: async () => {}, mongoose: { connection: { readyState: 1 } },
-  Membership, ProjectModel,
+  Membership, ProjectModel, RoomControl,
   serializeProject: p => ({ project_id: p.project_id, name: p.name, status: p.status }),
   event: actor => ({ actor }), activity: e => e,
   transitions: { draft: ["approved_plan", "rejected"], approved_plan: ["awaiting_review"], awaiting_review: ["merged", "rejected"], rejected: ["draft"], merged: ["paused"], paused: ["merged"] },
+  logger: { warn() {}, error() {}, info() {} },
 };
 const temp = await mkdtemp(path.join(tmpdir(), "room-tests-"));
 const outfile = path.join(temp, "router.mjs");
@@ -60,7 +80,9 @@ await build({
       [/^@clerk\/express$/, ["getAuth", "clerkClient"]],
       [/\/lib\/mongo$/, ["connectMongo", "mongoose"]],
       [/\/lib\/teams$/, ["Membership"]],
+      [/\/lib\/room-control$/, ["RoomControl"]],
       [/\/lib\/projects$/, ["ProjectModel", "serializeProject", "event", "activity", "transitions"]],
+      [/^\.\/logger$/, ["logger"]],
     ]) {
       b.onResolve({ filter }, args => ({ path: names.join(","), namespace: "adapter" }));
     }
@@ -133,12 +155,31 @@ try {
     assert.equal((await request("PUT", `/projects/${id}/status`, "user_reviewer", "user_owner", { status: "approved_plan", expected_status: "draft" })).status, 200);
     assert.equal((await request("PUT", `/projects/${id}/status`, "user_editor", "user_owner", { status: "awaiting_review", expected_status: "approved_plan" })).status, 200);
     assert.equal((await request("PUT", `/projects/${id}/status`, "user_viewer", "user_owner", { status: "merged", expected_status: "awaiting_review" })).status, 403);
-    assert.equal((await request("PUT", `/projects/${id}/status`, "user_reviewer", "user_owner", { status: "merged", expected_status: "awaiting_review" })).status, 200);
+    assert.equal((await request("PUT", `/projects/${id}/status`, "user_reviewer", "user_owner", { status: "merged", expected_status: "awaiting_review" })).status, 403);
+    assert.equal((await request("PUT", `/projects/${id}/status`, "user_owner", null, { status: "merged", expected_status: "awaiting_review" })).status, 200);
+    assert.equal((await request("PUT", `/projects/${id}/status`, "user_reviewer", "user_owner", { status: "paused", expected_status: "merged" })).status, 200);
+    assert.equal((await request("PUT", `/projects/${id}/status`, "user_reviewer", "user_owner", { status: "merged", expected_status: "paused" })).status, 200);
     calls = [];
     await request("GET", "/dashboard", "user_viewer", "user_owner");
     await request("GET", "/audit", "user_viewer", "user_owner");
     assert.ok(calls.every(f => f.owner_id === "user_owner"));
     assert.equal((await request("DELETE", `/projects/${id}`, "user_owner")).status, 204);
+  });
+  await test("only owner can stop or resume a room; reads continue but room mutations freeze", async () => {
+    assert.equal((await request("POST", "/emergency-stop", "user_stranger", "user_owner")).status, 403);
+    assert.equal((await request("POST", "/emergency-stop", "user_reviewer", "user_owner")).status, 403);
+    assert.equal((await request("POST", "/emergency-stop", "user_owner")).status, 200);
+    assert.equal((await request("POST", "/emergency-stop", "user_owner")).status, 409);
+    assert.equal((await (await request("GET", "/operations", "user_owner")).json()).stopped, true);
+    assert.equal((await request("GET", "/projects", "user_owner")).status, 200);
+    assert.equal((await request("POST", "/projects", "user_owner", null, input)).status, 423);
+    assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: "user_editor", role: "viewer" })).status, 423);
+    assert.equal((await request("POST", "/projects", "user_other", null, input)).status, 201);
+    assert.equal((await request("POST", "/emergency-resume", "user_reviewer", "user_owner")).status, 403);
+    assert.equal((await request("POST", "/emergency-resume", "user_owner")).status, 200);
+    assert.equal((await request("POST", "/emergency-resume", "user_owner")).status, 409);
+    assert.equal((await (await request("GET", "/operations", "user_owner")).json()).stopped, false);
+    assert.equal((await request("POST", "/projects", "user_owner", null, input)).status, 201);
   });
   await test("role changes and revocation take effect on next request; room list is identity scoped", async () => {
     assert.equal((await (await request("GET", "/rooms", "user_viewer")).json()).length, 2);

@@ -53,7 +53,9 @@ router.post("/integrations/:id/test", requireIntegrationAdmin, async (req, res):
   const parsed = TestIntegrationParams.safeParse(req.params);
   if (!parsed.success) { res.status(400).json({ ok: false, message: "Unknown integration." }); return; }
   const { id } = parsed.data;
-  if (!isConfigured(id)) {
+  // Slack's account-access probe uses the connector. It does not need the
+  // separate bot/channel/signing setup required for incoming commands.
+  if (id !== "slack" && !isConfigured(id)) {
     res.status(400).json({ ok: false, message: "Not connected. Add the required configuration before testing." }); return;
   }
   try {

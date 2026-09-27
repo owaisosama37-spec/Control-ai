@@ -54,11 +54,13 @@ export function IntegrationCards({ status }: { status: Record<IntegrationId, { c
           <span className={`pill ${state}`} data-testid={`status-${state}`}>{t(state)}</span>
         </div>
         <h3>{service.name}</h3>
-        <p>{t(!configured ? "Configuration is incomplete; connect this service in a later phase." : result ? result.message : "Configuration is present; connection has not been tested.")}</p>
+        <p>{result ? t(result.message) : t(!configured ? service.id === "slack" ? "Slack commands and approval notifications are not configured. Test account access separately." : "Configuration is incomplete; connect this service in a later phase." : "Configuration is present; connection has not been tested.")}</p>
+        {service.id === "github" && <div className="row-meta mt-2">{t("Repository access does not confirm incoming webhooks. Publish the app and verify a real GitHub delivery.")}</div>}
+        {service.id === "slack" && <div className="row-meta mt-2">{t("The connected Slack account supports outbound API access only. Commands require your own Slack app, a published endpoint and a verified account mapping.")}</div>}
         {access.data?.isAdmin && config && <>
           {config.missing.length > 0 && <div className="row-meta mt-3">{t("Missing settings")}: <span className="break-all">{config.missing.map((name, index) => <span key={name}>{index > 0 && ", "}<code>{name}</code></span>)}</span></div>}
           {config.alternatives.length > 0 && <div className="row-meta mt-2">{t("Complete one option")}: {config.alternatives.map((group, index) => <span key={index}>{index > 0 && ` ${t("or")} `}<span className="break-all">({group.map((name, item) => <span key={name}>{item > 0 && " + "}<code>{name}</code></span>)})</span></span>)}</div>}
-          <button type="button" className="btn small mt-5" disabled={!configured || testing !== null} onClick={() => void check(service.id)} aria-label={`${t("Test connection")} — ${service.name}`} data-testid={`test-${service.id}`}>
+          <button type="button" className="btn small mt-5" disabled={(!configured && service.id !== "slack") || testing !== null} onClick={() => void check(service.id)} aria-label={`${t("Test connection")} — ${service.name}`} data-testid={`test-${service.id}`}>
             {testing === service.id ? t("Testing…") : t("Test connection")}
           </button>
           {service.id === "email" && <div className="row-meta mt-2">{t("Testing email sends a message to your verified primary address.")}</div>}

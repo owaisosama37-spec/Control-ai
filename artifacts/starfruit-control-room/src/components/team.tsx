@@ -3,6 +3,7 @@ import { useUser } from "@clerk/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { setRoomOwner, useListRooms, useListMembers, useSaveMember, useRemoveMember, type MemberInput } from "@workspace/api-client-react";
 import { errorMessage } from "./project-form";
+import { RoomSafetyControls } from "./room-safety-controls";
 
 const Access = createContext({ role: "viewer", owner: "" });
 export const useRoomAccess = () => {
@@ -30,7 +31,7 @@ export function TeamBoundary({ children }: { children: React.ReactNode }) {
       {!access && <option value="">Access revoked — choose a room</option>}
       {rooms.data.map(r => <option key={r.owner_id} value={r.owner_id}>{r.owner_id === user!.id ? "My room" : `Team: ${r.owner_id}`} · {r.role}</option>)}
     </select></label><span className="muted text-xs">{access ? `Your role: ${access.role}` : "You no longer have access to this room."}</span></div>
-    {access && children}
+    {access && <><RoomSafetyControls isOwner={access.role === "owner"} />{children}</>}
   </Access.Provider>;
 }
 
@@ -58,7 +59,7 @@ export function TeamPage() {
   }
   return <><div className="page-heading"><div><div className="eyebrow">Room permissions</div><h1>Team & access.</h1><p>Sharing grants access to all projects and history in the selected room.</p></div></div>
     <div className="notice">Your account ID: <code className="break-all">{user?.id}</code><br />Share this ID with a room owner to join their team. Members must sign up first.</div>
-    <section className="panel p-6 mb-6"><h2>Roles</h2><p className="muted leading-7 text-sm">Owner: all actions, member management, and deletion.<br />Editor: create and edit projects, submit for review, and return rejected work to draft.<br />Reviewer: approve, reject, pause, and resume projects.<br />Viewer: read projects, budgets, members, and activity only.</p><p className="muted text-xs mt-4">The owner is permanent. Unowned legacy records remain inaccessible.</p></section>
+    <section className="panel p-6 mb-6"><h2>Roles</h2><p className="muted leading-7 text-sm">Owner: all actions, final delivery decision, member management, and deletion.<br />Editor: create and edit projects, submit for review, and return rejected work to draft.<br />Reviewer: approve plans, reject, pause, and resume projects; cannot record final delivery.<br />Viewer: read projects, budgets, members, and activity only.</p><p className="muted text-xs mt-4">The owner is permanent. Unowned legacy records remain inaccessible.</p></section>
     {isOwner && <form className="panel p-6 mb-6" onSubmit={e => { e.preventDefault(); void update({ user_id: userId.trim(), role }); }}>
       <h2>Add a member</h2><label className="form-field mt-4">Clerk account ID<input className="input" required pattern="user_[a-zA-Z0-9]+" maxLength={128} value={userId} onChange={e => setUserId(e.target.value)} placeholder="user_…" /></label>
       <label className="form-field mt-4">Role<select className="input" value={role} onChange={e => setRole(e.target.value as MemberInput["role"])}>{["viewer", "editor", "reviewer"].map(r => <option key={r}>{r}</option>)}</select></label>
