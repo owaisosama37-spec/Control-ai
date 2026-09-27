@@ -29,7 +29,10 @@ Use the configured Replit workflows:
 The workflows supply the service ports and preview routing. Open the app preview,
 not a guessed localhost port or a historical repl.co address.
 
-Checks: `pnpm run typecheck`. Regenerate contracts after API changes with
+Checks: `pnpm run typecheck`, `pnpm --filter @workspace/api-server run test:access`,
+and `pnpm --filter @workspace/api-server run test:webhook`. The webhook test sends
+local HTTP requests with a test-only signing key; it does not contact GitHub.
+Regenerate contracts after API changes with
 `pnpm --filter @workspace/api-spec run codegen`.
 
 ## 5. External integrations
