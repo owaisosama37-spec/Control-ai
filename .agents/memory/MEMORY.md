@@ -7,5 +7,5 @@
 - [Resend send-only grants](resend-send-only.md) — a connected send-only key may send email but cannot list or verify sender domains; require a confirmed sender.
 - [Workspace restart check](workspace-restart-check.md) — after an unexpected workspace restart, confirm recent edits still exist before trusting earlier checks.
 - [Isolated Mongo test fidelity](isolated-mongo-tests.md) — mock detached reads and transaction rollback before trusting role/audit route failures.
-- [Gemini generation verification](gemini-api-verification.md) — a successful models.list response does not guarantee generateContent access on new projects.
+- [Gemini generation verification](gemini-api-verification.md) — model listing or a one-word reply does not prove real review prompts work.
 - [Source export safety](source-export-safety.md) — scan final archives, including legacy examples, rather than trusting filename exclusions alone.

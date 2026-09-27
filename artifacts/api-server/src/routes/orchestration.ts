@@ -28,7 +28,14 @@ function matchesExpectedVersion(task: any, input: { expected_status: string; exp
 }
 function providerFailure(req: any, res: any, provider: "Claude" | "Gemini", error: unknown) {
   const errorName = error instanceof Error ? error.name : "UnknownError";
-  req.log?.error({ provider, error_name: errorName }, "Architecture assistance request failed");
+  const upstreamStatus = error && typeof error === "object" && "status" in error &&
+    typeof error.status === "number" ? error.status : null;
+  req.log?.error({ provider, error_name: errorName, upstream_status: upstreamStatus }, "Architecture assistance request failed");
+  if (upstreamStatus !== null && [429, 502, 503, 504].includes(upstreamStatus)) {
+    res.setHeader("Retry-After", "30");
+    res.status(503).json({ error: `${provider} is temporarily unavailable. Try again later; this request did not change the task.` });
+    return;
+  }
   res.status(502).json({ error: `${provider} could not complete the request. Check its integration settings and try again.` });
 }
 

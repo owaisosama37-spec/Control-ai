@@ -136,7 +136,7 @@ globalThis.__roomTest = {
   },
   reviewArchitecture: async input => {
     aiCalls.push({ action: "review", input });
-    if (aiFailures.has("review")) throw new Error("provider-detail-must-not-leak");
+    if (aiFailures.has("review")) throw Object.assign(new Error("provider-detail-must-not-leak"), { status: 503 });
     return "Review: add explicit failure handling and verify role boundaries.";
   },
   validateImplementation: async input => {
@@ -382,6 +382,26 @@ try {
     const failedRecord = orchestrationTasks.find(t => t.task_id === failingTask.id);
     assert.equal(failedRecord.status, "draft");
     assert.equal(failedRecord.ai_architecture_draft, "");
+    const fallbackPlan = await request("PUT", `/orchestration/tasks/${failingTask.id}/plan`,
+      "user_owner", null, { expected_status: "draft", plan: "Use one route, scope each request, and test the response." });
+    assert.equal(fallbackPlan.status, 200);
+    const planned = await fallbackPlan.json();
+    const beforeHistory = failedRecord.room_events.length;
+    aiFailures.add("review");
+    try {
+      const response = await request("POST", `/orchestration/tasks/${failingTask.id}/gemini-review`,
+        "user_reviewer", "user_owner", version(planned));
+      assert.equal(response.status, 503);
+      assert.equal(response.headers.get("retry-after"), "30");
+      const error = await response.text();
+      assert.match(error, /temporarily unavailable/);
+      assert.doesNotMatch(error, /provider-detail-must-not-leak/);
+    } finally {
+      aiFailures.delete("review");
+    }
+    assert.equal(failedRecord.status, "plan_proposed");
+    assert.equal(failedRecord.ai_architecture_review, "");
+    assert.equal(failedRecord.room_events.length, beforeHistory);
     assert.equal(proposed.status, "plan_proposed");
   });
   await test("only owner can stop or resume a room; reads continue but room mutations freeze", async () => {
