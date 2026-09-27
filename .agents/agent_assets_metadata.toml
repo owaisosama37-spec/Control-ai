@@ -28,3 +28,17 @@ mtime_ms = 1790500362068
 storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:6a531eb2-c806-4c50-bfe2-01fefdf28c81/470e640f-a99a-4311-8a16-85aaa92cf49a/7fdbb84d-ed7d-46bf-b88c-357090f724d3"
 storage_version_token = "1790500605351148"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "g93Cwl0QAs5IUi53YZRjP"
+uri = "file://exports/starfruit-control-room-source.zip"
+type = "unspecified"
+title = "ملفات Starfruit Control Room كاملة"
+description = "أرشيف ZIP يضم 356 ملفًا من ملفات المشروع ومرفقاته. استُبعدت ملفات البيئة المحلية واعتماديات التثبيت، وحُجب عنوان قاعدة بيانات حساس داخل دليل قديم في نسخة التصدير فقط."
+logical_id = "d80c670a-2035-438a-b897-ddb3c092b996"
+content_hash = "sha256:87c8c212d770cfed075b8e3160ef86f5596ac3437e1941ebb0a63cb5f58b042d"
+size = 26538378
+mtime_ms = 1790512295437
+storage_uri = "gcs://replit-rams-assets-pike/rams/assets/repl:6a531eb2-c806-4c50-bfe2-01fefdf28c81/d80c670a-2035-438a-b897-ddb3c092b996/d07cc73e-73be-4412-8504-80c91b61225b"
+storage_version_token = "1790512305970240"
+content_type = "application/octet-stream"
