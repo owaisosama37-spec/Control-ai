@@ -76,10 +76,17 @@ Authenticated using Clerk cookies:
 - `PUT /api/orchestration/tasks/:taskId/decision`
 - `PUT /api/orchestration/tasks/:taskId/pause`
 - `PUT /api/orchestration/tasks/:taskId/resume`
+- `POST /api/orchestration/tasks/:taskId/claude-architecture`
+- `POST /api/orchestration/tasks/:taskId/claude-improve`
+- `POST /api/orchestration/tasks/:taskId/gemini-review`
+- `POST /api/orchestration/tasks/:taskId/gemini-validation`
 
-Orchestration tasks are manual records. Plans must be entered by a person;
-only the room owner can approve or reject them. Approval never calls a model,
-starts a worker, creates a branch or PR, or merges code.
+Orchestration tasks are manual records. A permitted user may explicitly request
+Claude architecture drafts/improvements and Gemini review of a draft or
+user-provided implementation notes. Those results are advisory and stored on
+the task. A person must submit any draft as a plan; only the room owner can
+approve or reject it. Approval never calls a model, starts a worker, creates
+a branch or PR, or merges code.
 
 Exact schemas are in `lib/api-spec/openapi.yaml`. Status requests include both the
 desired status and expected_status; conflicting updates return 409.
