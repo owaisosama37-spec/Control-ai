@@ -45,9 +45,9 @@ async function testGemini(): Promise<TestResult> {
   });
   // generateContent is supported by both the direct provider and Replit's AI proxy.
   const response = await client.models.generateContent({
-    model: process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash",
+    model: process.env.GEMINI_MODEL?.trim() || "gemini-3.8-flash",
     contents: [{ role: "user", parts: [{ text: "Reply with OK." }] }],
-    config: { maxOutputTokens: 8192 },
+    config: { maxOutputTokens: 256 },
   });
   return response.text
     ? { ok: true, message: "Gemini connection verified." }
