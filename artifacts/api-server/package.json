@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test:access": "node scripts/test-room-access.mjs",
+    "test:audit": "node scripts/test-audit-signatures.mjs",
     "test:webhook": "node scripts/test-github-webhook.mjs",
     "db:init": "node scripts/init-db.mjs",
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",

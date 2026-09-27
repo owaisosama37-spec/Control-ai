@@ -30,8 +30,10 @@ The workflows supply the service ports and preview routing. Open the app preview
 not a guessed localhost port or a historical repl.co address.
 
 Checks: `pnpm run typecheck`, `pnpm --filter @workspace/api-server run test:access`,
-and `pnpm --filter @workspace/api-server run test:webhook`. The webhook test sends
-local HTTP requests with a test-only signing key; it does not contact GitHub.
+`pnpm --filter @workspace/api-server run test:audit`, and
+`pnpm --filter @workspace/api-server run test:webhook`. The audit test uses an
+isolated Mongo adapter and does not open a database connection. The webhook test
+sends local HTTP requests with a test-only signing key; it does not contact GitHub.
 Regenerate contracts after API changes with
 `pnpm --filter @workspace/api-spec run codegen`.
 
