@@ -15,9 +15,16 @@ localPort = 22984
 run = "pnpm --filter @workspace/starfruit-control-room run dev"
 
 [services.production]
-build = [ "pnpm", "--filter", "@workspace/starfruit-control-room", "run", "build" ]
 serve = "static"
 publicDir = "artifacts/starfruit-control-room/dist/public"
+
+[services.production.build]
+args = [ "pnpm", "--filter", "@workspace/starfruit-control-room", "run", "build" ]
+
+[services.production.build.env]
+BASE_PATH = "/"
+NODE_ENV = "production"
+PORT = "22984"
 
 [[services.production.rewrites]]
 from = "/*"
