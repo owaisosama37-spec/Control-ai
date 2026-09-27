@@ -46,7 +46,7 @@ router.get("/system/status", (_req, res) => {
       slack: { configured: isConfigured("slack") },
       email: { configured: isConfigured("email") },
     },
-    orchestration: "Manual workflow tracking. Autonomous agent execution is not enabled.",
+    orchestration: "User-triggered architecture assistance only; autonomous execution and merging are not enabled.",
   };
   res.json(systemStatusSchema.parse(status));
 });
@@ -96,6 +96,7 @@ router.use(async (req, res, next) => {
       (req.path.endsWith("/status") && req.body?.status === "merged" && req.body?.expected_status === "awaiting_review") ? "delete" :
       req.path.startsWith("/members") ? "members" :
       req.method === "DELETE" ? "delete" :
+      (req.path.endsWith("/gemini-review") || req.path.endsWith("/gemini-validation")) ? "review" :
       req.path.endsWith("/status") && req.body?.status !== "awaiting_review" && req.body?.status !== "draft" ? "review" : "edit";
     if (!allows(role, permission)) {
       res.status(403).json({ error: "Your role does not permit this action." }); return;

@@ -256,6 +256,61 @@ export interface OrchestrationPauseInput {
   reason: string;
 }
 
+export type OrchestrationAiActionInputExpectedStatus = typeof OrchestrationAiActionInputExpectedStatus[keyof typeof OrchestrationAiActionInputExpectedStatus];
+
+
+export const OrchestrationAiActionInputExpectedStatus = {
+  draft: 'draft',
+  rejected: 'rejected',
+  plan_proposed: 'plan_proposed',
+  plan_approved: 'plan_approved',
+} as const;
+
+export interface OrchestrationAiActionInput {
+  expected_status: OrchestrationAiActionInputExpectedStatus;
+  expected_updated_at: string;
+}
+
+export type OrchestrationImproveInputExpectedStatus = typeof OrchestrationImproveInputExpectedStatus[keyof typeof OrchestrationImproveInputExpectedStatus];
+
+
+export const OrchestrationImproveInputExpectedStatus = {
+  draft: 'draft',
+  rejected: 'rejected',
+  plan_proposed: 'plan_proposed',
+  plan_approved: 'plan_approved',
+} as const;
+
+export interface OrchestrationImproveInput {
+  expected_status: OrchestrationImproveInputExpectedStatus;
+  expected_updated_at: string;
+  /**
+     * @minLength 3
+     * @maxLength 4000
+     */
+  feedback: string;
+}
+
+export type OrchestrationValidationInputExpectedStatus = typeof OrchestrationValidationInputExpectedStatus[keyof typeof OrchestrationValidationInputExpectedStatus];
+
+
+export const OrchestrationValidationInputExpectedStatus = {
+  draft: 'draft',
+  rejected: 'rejected',
+  plan_proposed: 'plan_proposed',
+  plan_approved: 'plan_approved',
+} as const;
+
+export interface OrchestrationValidationInput {
+  expected_status: OrchestrationValidationInputExpectedStatus;
+  expected_updated_at: string;
+  /**
+     * @minLength 20
+     * @maxLength 12000
+     */
+  implementation_result: string;
+}
+
 export type OrchestrationTaskPlanSource = typeof OrchestrationTaskPlanSource[keyof typeof OrchestrationTaskPlanSource];
 
 
@@ -282,9 +337,33 @@ export interface OrchestrationTask {
   rejection_reason: string;
 }
 
-export type OrchestrationTaskDetail = OrchestrationTask & {
+export type OrchestrationTaskDetailAiArchitectureReviewSource = typeof OrchestrationTaskDetailAiArchitectureReviewSource[keyof typeof OrchestrationTaskDetailAiArchitectureReviewSource];
+
+
+export const OrchestrationTaskDetailAiArchitectureReviewSource = {
+  none: 'none',
+  architecture_draft: 'architecture_draft',
+  plan: 'plan',
+} as const;
+
+export type OrchestrationTaskDetail = OrchestrationTask & ({
   history: Activity[];
-};
+  /** @maxLength 12000 */
+  ai_architecture_draft: string;
+  /** @nullable */
+  ai_architecture_updated_at: string | null;
+  /** @maxLength 12000 */
+  ai_architecture_review: string;
+  ai_architecture_review_source: OrchestrationTaskDetailAiArchitectureReviewSource;
+  /** @nullable */
+  ai_architecture_reviewed_at: string | null;
+  /** @maxLength 12000 */
+  ai_implementation_result: string;
+  /** @maxLength 12000 */
+  ai_implementation_validation: string;
+  /** @nullable */
+  ai_implementation_validated_at: string | null;
+});
 
 export type IntegrationStatusStatus = typeof IntegrationStatusStatus[keyof typeof IntegrationStatusStatus];
 

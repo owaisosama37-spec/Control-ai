@@ -13,8 +13,11 @@ const memberships = [];
 const records = [];
 const roomControls = [];
 const orchestrationTasks = [];
+const aiCalls = [];
+const aiFailures = new Set();
 let calls = [];
-const matches = (r, f) => Object.entries(f).every(([k, v]) => v === null ? r[k] == null : r[k] === v);
+const sameValue = (a, b) => a instanceof Date && b instanceof Date ? a.getTime() === b.getTime() : a === b;
+const matches = (r, f) => Object.entries(f).every(([k, v]) => v === null ? r[k] == null : sameValue(r[k], v));
 const query = value => ({ select() { return this; }, sort() { return this; }, limit() { return this; }, session() { return this; }, lean: async () => structuredClone(value), then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
 const Membership = {
   find: f => query(memberships.filter(r => matches(r, f))),
@@ -49,6 +52,9 @@ const OrchestrationTaskModel = {
   findOne: f => query(orchestrationTasks.find(r => matches(r, f))),
   create: async data => {
     const task = { status: "draft", plan: "", plan_source: "manual", approved_by: null, approved_at: null,
+      ai_architecture_draft: "", ai_architecture_updated_at: null, ai_architecture_review: "",
+      ai_architecture_review_source: "none", ai_architecture_reviewed_at: null,
+      ai_implementation_result: "", ai_implementation_validation: "", ai_implementation_validated_at: null,
       paused_from: null, rejection_reason: "", created_at: new Date(), updated_at: new Date(), ...data };
     orchestrationTasks.push(task);
     return task;
@@ -100,9 +106,44 @@ globalThis.__roomTest = {
   } },
   Membership, ProjectModel, RoomControl, OrchestrationTaskModel,
   serializeTask: (task, detail = false) => ({ id: task.task_id, project_id: task.project_id,
-    title: task.title, requirement: task.requirement, plan: task.plan, status: task.status,
-    ...(detail ? { history: task.room_events } : {}) }),
+    title: task.title, requirement: task.requirement, plan: task.plan, plan_source: task.plan_source,
+    status: task.status, created_at: new Date(task.created_at).toISOString(),
+    updated_at: new Date(task.updated_at).toISOString(), approved_by: task.approved_by ?? null,
+    approved_at: task.approved_at ? new Date(task.approved_at).toISOString() : null,
+    paused_from: task.paused_from ?? null, rejection_reason: task.rejection_reason ?? "",
+    ...(detail ? {
+      ai_architecture_draft: task.ai_architecture_draft ?? "",
+      ai_architecture_updated_at: task.ai_architecture_updated_at ? new Date(task.ai_architecture_updated_at).toISOString() : null,
+      ai_architecture_review: task.ai_architecture_review ?? "",
+      ai_architecture_review_source: task.ai_architecture_review_source ?? "none",
+      ai_architecture_reviewed_at: task.ai_architecture_reviewed_at ? new Date(task.ai_architecture_reviewed_at).toISOString() : null,
+      ai_implementation_result: task.ai_implementation_result ?? "",
+      ai_implementation_validation: task.ai_implementation_validation ?? "",
+      ai_implementation_validated_at: task.ai_implementation_validated_at ? new Date(task.ai_implementation_validated_at).toISOString() : null,
+      history: task.room_events,
+    } : {}) }),
   serializeProject: p => ({ project_id: p.project_id, name: p.name, status: p.status }),
+  isConfigured: () => true,
+  draftArchitecture: async input => {
+    aiCalls.push({ action: "draft", input });
+    if (aiFailures.has("draft")) throw new Error("provider-detail-must-not-leak");
+    return "Draft architecture: separate the API contract, scoped persistence, and review UI.";
+  },
+  improveArchitecture: async input => {
+    aiCalls.push({ action: "improve", input });
+    if (aiFailures.has("improve")) throw new Error("provider-detail-must-not-leak");
+    return "Improved architecture: validate inputs, persist advisory outputs, and retain human approval.";
+  },
+  reviewArchitecture: async input => {
+    aiCalls.push({ action: "review", input });
+    if (aiFailures.has("review")) throw new Error("provider-detail-must-not-leak");
+    return "Review: add explicit failure handling and verify role boundaries.";
+  },
+  validateImplementation: async input => {
+    aiCalls.push({ action: "validate", input });
+    if (aiFailures.has("validate")) throw new Error("provider-detail-must-not-leak");
+    return "Validation: compare the supplied notes with the approved plan; tests remain unverified.";
+  },
   event: (actor, id, name, action, description) => ({ actor, project_id: id, project_name: name, action, description }), activity: e => e,
   transitions: { draft: ["approved_plan", "rejected"], approved_plan: ["awaiting_review"], awaiting_review: ["merged", "rejected"], rejected: ["draft"], merged: ["paused"], paused: ["merged"] },
   logger: { warn() {}, error() {}, info() {} },
@@ -120,6 +161,8 @@ await build({
       [/\/lib\/room-control$/, ["RoomControl"]],
       [/\/lib\/projects$/, ["ProjectModel", "serializeProject", "event", "activity", "transitions"]],
       [/\/lib\/orchestration-tasks$/, ["OrchestrationTaskModel", "serializeTask"]],
+      [/\/integrations\/registry$/, ["isConfigured"]],
+      [/\/integrations\/orchestration-ai$/, ["draftArchitecture", "improveArchitecture", "reviewArchitecture", "validateImplementation"]],
       [/^\.\/logger$/, ["logger"]],
     ]) {
       b.onResolve({ filter }, args => ({ path: names.join(","), namespace: "adapter" }));
@@ -248,6 +291,98 @@ try {
       { decision: "reject", reason: "Revise the scope" })).status, 200);
     assert.equal((await request("PUT", `/orchestration/tasks/${rejected.id}/plan`, "user_editor", "user_owner",
       { ...plan, expected_status: "rejected" })).status, 200);
+  });
+  await test("Claude and Gemini assistance is explicit, role-gated, persisted, and never changes approval state", async () => {
+    const projectResponse = await request("POST", "/projects", "user_owner", null, input);
+    const { project_id } = await projectResponse.json();
+    const taskResponse = await request("POST", "/orchestration/tasks", "user_editor", "user_owner", {
+      project_id, title: "Review architecture", requirement: "Design and validate a room-scoped service with human approval.",
+    });
+    assert.equal(taskResponse.status, 201);
+    const task = await taskResponse.json();
+    const path = `/orchestration/tasks/${task.id}`;
+    const version = current => ({ expected_status: current.status, expected_updated_at: current.updated_at });
+    const beforeCalls = aiCalls.length;
+
+    assert.equal((await request("POST", `${path}/claude-architecture`, "user_viewer", "user_owner", version(task))).status, 403);
+    assert.equal((await request("POST", `${path}/claude-architecture`, "user_reviewer", "user_owner", version(task))).status, 403);
+    assert.equal((await request("POST", `${path}/claude-architecture`, "user_other", null, version(task))).status, 404);
+    assert.equal(aiCalls.length, beforeCalls);
+
+    const draftResponse = await request("POST", `${path}/claude-architecture`, "user_editor", "user_owner", version(task));
+    assert.equal(draftResponse.status, 200);
+    let detail = await draftResponse.json();
+    assert.equal(detail.status, "draft");
+    assert.equal(detail.plan, "");
+    assert.equal(detail.plan_source, "manual");
+    assert.match(detail.ai_architecture_draft, /Draft architecture/);
+    assert.equal(detail.history.at(-1).actor, "user_editor");
+    assert.equal(detail.history.at(-1).action, "claude_architecture_drafted");
+    assert.equal(aiCalls.at(-1).action, "draft");
+
+    assert.equal((await request("POST", `${path}/gemini-review`, "user_editor", "user_owner", version(detail))).status, 403);
+    const reviewResponse = await request("POST", `${path}/gemini-review`, "user_reviewer", "user_owner", version(detail));
+    assert.equal(reviewResponse.status, 200);
+    detail = await reviewResponse.json();
+    assert.equal(detail.status, "draft");
+    assert.match(detail.ai_architecture_review, /Review:/);
+    assert.equal(detail.ai_architecture_review_source, "architecture_draft");
+    assert.equal(detail.history.at(-1).actor, "user_reviewer");
+
+    const improveResponse = await request("POST", `${path}/claude-improve`, "user_editor", "user_owner", {
+      ...version(detail), feedback: "Add explicit validation and keep outputs advisory.",
+    });
+    assert.equal(improveResponse.status, 200);
+    detail = await improveResponse.json();
+    assert.match(detail.ai_architecture_draft, /Improved architecture/);
+    assert.equal(detail.ai_architecture_review, "");
+    assert.equal(detail.status, "draft");
+
+    const submitted = await request("PUT", `${path}/plan`, "user_editor", "user_owner", {
+      plan: "Use separate API and persistence layers, validate access, and require owner approval.",
+      expected_status: "draft",
+    });
+    assert.equal(submitted.status, 200);
+    const proposed = await submitted.json();
+    const approvedResponse = await request("PUT", `${path}/decision`, "user_owner", null, { decision: "approve" });
+    assert.equal(approvedResponse.status, 200);
+    const approved = await approvedResponse.json();
+    assert.equal(approved.status, "plan_approved");
+    assert.equal((await request("POST", `${path}/gemini-validation`, "user_editor", "user_owner", {
+      ...version(approved), implementation_result: "The service and route were implemented; unit tests were added.",
+    })).status, 403);
+    const validationResponse = await request("POST", `${path}/gemini-validation`, "user_reviewer", "user_owner", {
+      ...version(approved), implementation_result: "The service and route were implemented; unit tests were added.",
+    });
+    assert.equal(validationResponse.status, 200);
+    detail = await validationResponse.json();
+    assert.equal(detail.status, "plan_approved");
+    assert.equal(detail.ai_implementation_result, "The service and route were implemented; unit tests were added.");
+    assert.match(detail.ai_implementation_validation, /Validation:/);
+    assert.equal(detail.history.at(-1).action, "gemini_implementation_validated");
+    const reloaded = await (await request("GET", path, "user_viewer", "user_owner")).json();
+    assert.equal(reloaded.ai_implementation_validation, detail.ai_implementation_validation);
+    assert.equal(reloaded.status, "plan_approved");
+    assert.ok(orchestrationTasks.find(t => t.task_id === task.id).room_events.every(e =>
+      !["agent_started", "task_executed", "merged"].includes(e.action)));
+
+    const failingResponse = await request("POST", "/orchestration/tasks", "user_owner", null, {
+      project_id, title: "Provider failure", requirement: "A model failure must not expose provider details or change state.",
+    });
+    const failingTask = await failingResponse.json();
+    aiFailures.add("draft");
+    try {
+      const response = await request("POST", `/orchestration/tasks/${failingTask.id}/claude-architecture`,
+        "user_owner", null, version(failingTask));
+      assert.equal(response.status, 502);
+      assert.doesNotMatch(await response.text(), /provider-detail-must-not-leak/);
+    } finally {
+      aiFailures.delete("draft");
+    }
+    const failedRecord = orchestrationTasks.find(t => t.task_id === failingTask.id);
+    assert.equal(failedRecord.status, "draft");
+    assert.equal(failedRecord.ai_architecture_draft, "");
+    assert.equal(proposed.status, "plan_proposed");
   });
   await test("only owner can stop or resume a room; reads continue but room mutations freeze", async () => {
     assert.equal((await request("POST", "/emergency-stop", "user_stranger", "user_owner")).status, 403);

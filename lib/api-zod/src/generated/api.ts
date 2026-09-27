@@ -433,6 +433,16 @@ export const GetOrchestrationTaskParams = zod.object({
   "taskId": zod.coerce.string()
 })
 
+export const getOrchestrationTaskResponseTwoAiArchitectureDraftMax = 12000;
+
+export const getOrchestrationTaskResponseTwoAiArchitectureReviewMax = 12000;
+
+export const getOrchestrationTaskResponseTwoAiImplementationResultMax = 12000;
+
+export const getOrchestrationTaskResponseTwoAiImplementationValidationMax = 12000;
+
+
+
 export const GetOrchestrationTaskResponse = zod.object({
   "id": zod.string(),
   "project_id": zod.string(),
@@ -457,7 +467,15 @@ export const GetOrchestrationTaskResponse = zod.object({
   "description": zod.string(),
   "created_at": zod.string(),
   "verified": zod.boolean()
-}))
+})),
+  "ai_architecture_draft": zod.string().max(getOrchestrationTaskResponseTwoAiArchitectureDraftMax),
+  "ai_architecture_updated_at": zod.coerce.date().nullable(),
+  "ai_architecture_review": zod.string().max(getOrchestrationTaskResponseTwoAiArchitectureReviewMax),
+  "ai_architecture_review_source": zod.enum(['none', 'architecture_draft', 'plan']),
+  "ai_architecture_reviewed_at": zod.coerce.date().nullable(),
+  "ai_implementation_result": zod.string().max(getOrchestrationTaskResponseTwoAiImplementationResultMax),
+  "ai_implementation_validation": zod.string().max(getOrchestrationTaskResponseTwoAiImplementationValidationMax),
+  "ai_implementation_validated_at": zod.coerce.date().nullable()
 }))
 
 
@@ -583,6 +601,250 @@ export const ResumeOrchestrationTaskResponse = zod.object({
   "paused_from": zod.string().nullable(),
   "rejection_reason": zod.string()
 })
+
+
+/**
+ * User-triggered synchronous Claude architecture draft. Does not submit or approve a plan, run code, start a worker, or merge.
+ */
+export const DraftOrchestrationArchitectureParams = zod.object({
+  "taskId": zod.coerce.string()
+})
+
+export const DraftOrchestrationArchitectureBody = zod.object({
+  "expected_status": zod.enum(['draft', 'rejected', 'plan_proposed', 'plan_approved']),
+  "expected_updated_at": zod.coerce.date()
+})
+
+export const draftOrchestrationArchitectureResponseTwoAiArchitectureDraftMax = 12000;
+
+export const draftOrchestrationArchitectureResponseTwoAiArchitectureReviewMax = 12000;
+
+export const draftOrchestrationArchitectureResponseTwoAiImplementationResultMax = 12000;
+
+export const draftOrchestrationArchitectureResponseTwoAiImplementationValidationMax = 12000;
+
+
+
+export const DraftOrchestrationArchitectureResponse = zod.object({
+  "id": zod.string(),
+  "project_id": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "status": zod.enum(['draft', 'plan_proposed', 'plan_approved', 'rejected', 'paused']),
+  "plan": zod.string(),
+  "plan_source": zod.enum(['manual']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "approved_by": zod.string().nullable(),
+  "approved_at": zod.coerce.date().nullable(),
+  "paused_from": zod.string().nullable(),
+  "rejection_reason": zod.string()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "id": zod.string(),
+  "actor_id": zod.string().describe('Clerk ID of the actor who performed the action.'),
+  "action": zod.string(),
+  "project_id": zod.string(),
+  "project_name": zod.string(),
+  "description": zod.string(),
+  "created_at": zod.string(),
+  "verified": zod.boolean()
+})),
+  "ai_architecture_draft": zod.string().max(draftOrchestrationArchitectureResponseTwoAiArchitectureDraftMax),
+  "ai_architecture_updated_at": zod.coerce.date().nullable(),
+  "ai_architecture_review": zod.string().max(draftOrchestrationArchitectureResponseTwoAiArchitectureReviewMax),
+  "ai_architecture_review_source": zod.enum(['none', 'architecture_draft', 'plan']),
+  "ai_architecture_reviewed_at": zod.coerce.date().nullable(),
+  "ai_implementation_result": zod.string().max(draftOrchestrationArchitectureResponseTwoAiImplementationResultMax),
+  "ai_implementation_validation": zod.string().max(draftOrchestrationArchitectureResponseTwoAiImplementationValidationMax),
+  "ai_implementation_validated_at": zod.coerce.date().nullable()
+}))
+
+
+/**
+ * User-triggered synchronous Claude improvement using explicit feedback. Does not submit or approve a plan, run code, start a worker, or merge.
+ */
+export const ImproveOrchestrationArchitectureParams = zod.object({
+  "taskId": zod.coerce.string()
+})
+
+export const improveOrchestrationArchitectureBodyFeedbackMin = 3;
+export const improveOrchestrationArchitectureBodyFeedbackMax = 4000;
+
+
+
+export const ImproveOrchestrationArchitectureBody = zod.object({
+  "expected_status": zod.enum(['draft', 'rejected', 'plan_proposed', 'plan_approved']),
+  "expected_updated_at": zod.coerce.date(),
+  "feedback": zod.string().min(improveOrchestrationArchitectureBodyFeedbackMin).max(improveOrchestrationArchitectureBodyFeedbackMax)
+})
+
+export const improveOrchestrationArchitectureResponseTwoAiArchitectureDraftMax = 12000;
+
+export const improveOrchestrationArchitectureResponseTwoAiArchitectureReviewMax = 12000;
+
+export const improveOrchestrationArchitectureResponseTwoAiImplementationResultMax = 12000;
+
+export const improveOrchestrationArchitectureResponseTwoAiImplementationValidationMax = 12000;
+
+
+
+export const ImproveOrchestrationArchitectureResponse = zod.object({
+  "id": zod.string(),
+  "project_id": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "status": zod.enum(['draft', 'plan_proposed', 'plan_approved', 'rejected', 'paused']),
+  "plan": zod.string(),
+  "plan_source": zod.enum(['manual']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "approved_by": zod.string().nullable(),
+  "approved_at": zod.coerce.date().nullable(),
+  "paused_from": zod.string().nullable(),
+  "rejection_reason": zod.string()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "id": zod.string(),
+  "actor_id": zod.string().describe('Clerk ID of the actor who performed the action.'),
+  "action": zod.string(),
+  "project_id": zod.string(),
+  "project_name": zod.string(),
+  "description": zod.string(),
+  "created_at": zod.string(),
+  "verified": zod.boolean()
+})),
+  "ai_architecture_draft": zod.string().max(improveOrchestrationArchitectureResponseTwoAiArchitectureDraftMax),
+  "ai_architecture_updated_at": zod.coerce.date().nullable(),
+  "ai_architecture_review": zod.string().max(improveOrchestrationArchitectureResponseTwoAiArchitectureReviewMax),
+  "ai_architecture_review_source": zod.enum(['none', 'architecture_draft', 'plan']),
+  "ai_architecture_reviewed_at": zod.coerce.date().nullable(),
+  "ai_implementation_result": zod.string().max(improveOrchestrationArchitectureResponseTwoAiImplementationResultMax),
+  "ai_implementation_validation": zod.string().max(improveOrchestrationArchitectureResponseTwoAiImplementationValidationMax),
+  "ai_implementation_validated_at": zod.coerce.date().nullable()
+}))
+
+
+/**
+ * User-triggered synchronous Gemini review of a saved architecture draft or plan. Does not approve, run code, start a worker, or merge.
+ */
+export const ReviewOrchestrationArchitectureParams = zod.object({
+  "taskId": zod.coerce.string()
+})
+
+export const ReviewOrchestrationArchitectureBody = zod.object({
+  "expected_status": zod.enum(['draft', 'rejected', 'plan_proposed', 'plan_approved']),
+  "expected_updated_at": zod.coerce.date()
+})
+
+export const reviewOrchestrationArchitectureResponseTwoAiArchitectureDraftMax = 12000;
+
+export const reviewOrchestrationArchitectureResponseTwoAiArchitectureReviewMax = 12000;
+
+export const reviewOrchestrationArchitectureResponseTwoAiImplementationResultMax = 12000;
+
+export const reviewOrchestrationArchitectureResponseTwoAiImplementationValidationMax = 12000;
+
+
+
+export const ReviewOrchestrationArchitectureResponse = zod.object({
+  "id": zod.string(),
+  "project_id": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "status": zod.enum(['draft', 'plan_proposed', 'plan_approved', 'rejected', 'paused']),
+  "plan": zod.string(),
+  "plan_source": zod.enum(['manual']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "approved_by": zod.string().nullable(),
+  "approved_at": zod.coerce.date().nullable(),
+  "paused_from": zod.string().nullable(),
+  "rejection_reason": zod.string()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "id": zod.string(),
+  "actor_id": zod.string().describe('Clerk ID of the actor who performed the action.'),
+  "action": zod.string(),
+  "project_id": zod.string(),
+  "project_name": zod.string(),
+  "description": zod.string(),
+  "created_at": zod.string(),
+  "verified": zod.boolean()
+})),
+  "ai_architecture_draft": zod.string().max(reviewOrchestrationArchitectureResponseTwoAiArchitectureDraftMax),
+  "ai_architecture_updated_at": zod.coerce.date().nullable(),
+  "ai_architecture_review": zod.string().max(reviewOrchestrationArchitectureResponseTwoAiArchitectureReviewMax),
+  "ai_architecture_review_source": zod.enum(['none', 'architecture_draft', 'plan']),
+  "ai_architecture_reviewed_at": zod.coerce.date().nullable(),
+  "ai_implementation_result": zod.string().max(reviewOrchestrationArchitectureResponseTwoAiImplementationResultMax),
+  "ai_implementation_validation": zod.string().max(reviewOrchestrationArchitectureResponseTwoAiImplementationValidationMax),
+  "ai_implementation_validated_at": zod.coerce.date().nullable()
+}))
+
+
+/**
+ * User-triggered synchronous Gemini validation of user-supplied implementation notes against an approved plan. Does not execute, approve, or merge.
+ */
+export const ValidateOrchestrationImplementationParams = zod.object({
+  "taskId": zod.coerce.string()
+})
+
+export const validateOrchestrationImplementationBodyImplementationResultMin = 20;
+export const validateOrchestrationImplementationBodyImplementationResultMax = 12000;
+
+
+
+export const ValidateOrchestrationImplementationBody = zod.object({
+  "expected_status": zod.enum(['draft', 'rejected', 'plan_proposed', 'plan_approved']),
+  "expected_updated_at": zod.coerce.date(),
+  "implementation_result": zod.string().min(validateOrchestrationImplementationBodyImplementationResultMin).max(validateOrchestrationImplementationBodyImplementationResultMax)
+})
+
+export const validateOrchestrationImplementationResponseTwoAiArchitectureDraftMax = 12000;
+
+export const validateOrchestrationImplementationResponseTwoAiArchitectureReviewMax = 12000;
+
+export const validateOrchestrationImplementationResponseTwoAiImplementationResultMax = 12000;
+
+export const validateOrchestrationImplementationResponseTwoAiImplementationValidationMax = 12000;
+
+
+
+export const ValidateOrchestrationImplementationResponse = zod.object({
+  "id": zod.string(),
+  "project_id": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "status": zod.enum(['draft', 'plan_proposed', 'plan_approved', 'rejected', 'paused']),
+  "plan": zod.string(),
+  "plan_source": zod.enum(['manual']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "approved_by": zod.string().nullable(),
+  "approved_at": zod.coerce.date().nullable(),
+  "paused_from": zod.string().nullable(),
+  "rejection_reason": zod.string()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "id": zod.string(),
+  "actor_id": zod.string().describe('Clerk ID of the actor who performed the action.'),
+  "action": zod.string(),
+  "project_id": zod.string(),
+  "project_name": zod.string(),
+  "description": zod.string(),
+  "created_at": zod.string(),
+  "verified": zod.boolean()
+})),
+  "ai_architecture_draft": zod.string().max(validateOrchestrationImplementationResponseTwoAiArchitectureDraftMax),
+  "ai_architecture_updated_at": zod.coerce.date().nullable(),
+  "ai_architecture_review": zod.string().max(validateOrchestrationImplementationResponseTwoAiArchitectureReviewMax),
+  "ai_architecture_review_source": zod.enum(['none', 'architecture_draft', 'plan']),
+  "ai_architecture_reviewed_at": zod.coerce.date().nullable(),
+  "ai_implementation_result": zod.string().max(validateOrchestrationImplementationResponseTwoAiImplementationResultMax),
+  "ai_implementation_validation": zod.string().max(validateOrchestrationImplementationResponseTwoAiImplementationValidationMax),
+  "ai_implementation_validated_at": zod.coerce.date().nullable()
+}))
 
 
 export const GetSystemStatusResponse = zod.object({

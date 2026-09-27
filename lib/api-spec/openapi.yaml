@@ -313,6 +313,74 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/OrchestrationTask" }
+  /orchestration/tasks/{taskId}/claude-architecture:
+    post:
+      operationId: draftOrchestrationArchitecture
+      description: User-triggered synchronous Claude architecture draft. Does not submit or approve a plan, run code, start a worker, or merge.
+      parameters:
+        - { name: taskId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrchestrationAiActionInput" }
+      responses:
+        "200":
+          description: Draft persisted on the task; task status is unchanged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrchestrationTaskDetail" }
+  /orchestration/tasks/{taskId}/claude-improve:
+    post:
+      operationId: improveOrchestrationArchitecture
+      description: User-triggered synchronous Claude improvement using explicit feedback. Does not submit or approve a plan, run code, start a worker, or merge.
+      parameters:
+        - { name: taskId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrchestrationImproveInput" }
+      responses:
+        "200":
+          description: Improved draft persisted on the task; task status is unchanged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrchestrationTaskDetail" }
+  /orchestration/tasks/{taskId}/gemini-review:
+    post:
+      operationId: reviewOrchestrationArchitecture
+      description: User-triggered synchronous Gemini review of a saved architecture draft or plan. Does not approve, run code, start a worker, or merge.
+      parameters:
+        - { name: taskId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrchestrationAiActionInput" }
+      responses:
+        "200":
+          description: Review persisted on the task; task status is unchanged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrchestrationTaskDetail" }
+  /orchestration/tasks/{taskId}/gemini-validation:
+    post:
+      operationId: validateOrchestrationImplementation
+      description: User-triggered synchronous Gemini validation of user-supplied implementation notes against an approved plan. Does not execute, approve, or merge.
+      parameters:
+        - { name: taskId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrchestrationValidationInput" }
+      responses:
+        "200":
+          description: Validation persisted on the task; task status is unchanged
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrchestrationTaskDetail" }
   /system/status:
     get:
       operationId: getSystemStatus
@@ -509,6 +577,26 @@ components:
       required: [reason]
       properties:
         reason: { type: string, minLength: 3, maxLength: 1000 }
+    OrchestrationAiActionInput:
+      type: object
+      required: [expected_status, expected_updated_at]
+      properties:
+        expected_status: { type: string, enum: [draft, rejected, plan_proposed, plan_approved] }
+        expected_updated_at: { type: string, format: date-time }
+    OrchestrationImproveInput:
+      type: object
+      required: [expected_status, expected_updated_at, feedback]
+      properties:
+        expected_status: { type: string, enum: [draft, rejected, plan_proposed, plan_approved] }
+        expected_updated_at: { type: string, format: date-time }
+        feedback: { type: string, minLength: 3, maxLength: 4000 }
+    OrchestrationValidationInput:
+      type: object
+      required: [expected_status, expected_updated_at, implementation_result]
+      properties:
+        expected_status: { type: string, enum: [draft, rejected, plan_proposed, plan_approved] }
+        expected_updated_at: { type: string, format: date-time }
+        implementation_result: { type: string, minLength: 20, maxLength: 12000 }
     OrchestrationTask:
       type: object
       required: [id, project_id, title, requirement, status, plan, plan_source, created_at, updated_at, approved_by, approved_at, paused_from, rejection_reason]
@@ -530,9 +618,17 @@ components:
       allOf:
         - $ref: "#/components/schemas/OrchestrationTask"
         - type: object
-          required: [history]
+          required: [history, ai_architecture_draft, ai_architecture_updated_at, ai_architecture_review, ai_architecture_review_source, ai_architecture_reviewed_at, ai_implementation_result, ai_implementation_validation, ai_implementation_validated_at]
           properties:
             history: { type: array, items: { $ref: "#/components/schemas/Activity" } }
+            ai_architecture_draft: { type: string, maxLength: 12000 }
+            ai_architecture_updated_at: { type: [string, "null"], format: date-time }
+            ai_architecture_review: { type: string, maxLength: 12000 }
+            ai_architecture_review_source: { type: string, enum: [none, architecture_draft, plan] }
+            ai_architecture_reviewed_at: { type: [string, "null"], format: date-time }
+            ai_implementation_result: { type: string, maxLength: 12000 }
+            ai_implementation_validation: { type: string, maxLength: 12000 }
+            ai_implementation_validated_at: { type: [string, "null"], format: date-time }
     IntegrationStatus:
       type: object
       required: [name, status, description]

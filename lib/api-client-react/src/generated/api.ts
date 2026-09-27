@@ -36,12 +36,15 @@ import type {
   IntegrationConfiguration,
   IntegrationTestResult,
   MemberInput,
+  OrchestrationAiActionInput,
   OrchestrationDecisionInput,
+  OrchestrationImproveInput,
   OrchestrationPauseInput,
   OrchestrationPlanInput,
   OrchestrationTask,
   OrchestrationTaskDetail,
   OrchestrationTaskInput,
+  OrchestrationValidationInput,
   Project,
   ProjectInput,
   ReceiveGitHubWebhook200,
@@ -1832,6 +1835,350 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getResumeOrchestrationTaskMutationOptions(options));
+    }
+
+export const getDraftOrchestrationArchitectureUrl = (taskId: string,) => {
+
+
+
+
+  return `/api/orchestration/tasks/${taskId}/claude-architecture`
+}
+
+/**
+ * User-triggered synchronous Claude architecture draft. Does not submit or approve a plan, run code, start a worker, or merge.
+ */
+export const draftOrchestrationArchitecture = async (taskId: string,
+    orchestrationAiActionInput: OrchestrationAiActionInput, options?: Parameters<typeof customFetch>[1]): Promise<OrchestrationTaskDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrchestrationTaskDetail>(getDraftOrchestrationArchitectureUrl(taskId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(orchestrationAiActionInput)
+  }
+);}
+
+
+
+
+
+export const getDraftOrchestrationArchitectureMutationKey = () => ['draftOrchestrationArchitecture'] as const;
+
+export const getDraftOrchestrationArchitectureMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftOrchestrationArchitecture>>, TError,DraftOrchestrationArchitectureMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof draftOrchestrationArchitecture>>, TError,DraftOrchestrationArchitectureMutationVariables, TContext> => {
+
+const mutationKey = getDraftOrchestrationArchitectureMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof draftOrchestrationArchitecture>>, DraftOrchestrationArchitectureMutationVariables> = (props) => {
+          const {taskId,data} = props ?? {};
+
+          return  draftOrchestrationArchitecture(taskId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DraftOrchestrationArchitectureMutationResult = NonNullable<Awaited<ReturnType<typeof draftOrchestrationArchitecture>>>
+    export type DraftOrchestrationArchitectureMutationBody = BodyType<OrchestrationAiActionInput>
+    export type DraftOrchestrationArchitectureMutationError = ErrorType<unknown>
+    export type DraftOrchestrationArchitectureMutationVariables = {taskId: string;data: BodyType<OrchestrationAiActionInput>}
+
+    export const useDraftOrchestrationArchitecture = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof draftOrchestrationArchitecture>>, TError,DraftOrchestrationArchitectureMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof draftOrchestrationArchitecture>>,
+        TError,
+        DraftOrchestrationArchitectureMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDraftOrchestrationArchitectureMutationOptions(options));
+    }
+
+export const getImproveOrchestrationArchitectureUrl = (taskId: string,) => {
+
+
+
+
+  return `/api/orchestration/tasks/${taskId}/claude-improve`
+}
+
+/**
+ * User-triggered synchronous Claude improvement using explicit feedback. Does not submit or approve a plan, run code, start a worker, or merge.
+ */
+export const improveOrchestrationArchitecture = async (taskId: string,
+    orchestrationImproveInput: OrchestrationImproveInput, options?: Parameters<typeof customFetch>[1]): Promise<OrchestrationTaskDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrchestrationTaskDetail>(getImproveOrchestrationArchitectureUrl(taskId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(orchestrationImproveInput)
+  }
+);}
+
+
+
+
+
+export const getImproveOrchestrationArchitectureMutationKey = () => ['improveOrchestrationArchitecture'] as const;
+
+export const getImproveOrchestrationArchitectureMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof improveOrchestrationArchitecture>>, TError,ImproveOrchestrationArchitectureMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof improveOrchestrationArchitecture>>, TError,ImproveOrchestrationArchitectureMutationVariables, TContext> => {
+
+const mutationKey = getImproveOrchestrationArchitectureMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof improveOrchestrationArchitecture>>, ImproveOrchestrationArchitectureMutationVariables> = (props) => {
+          const {taskId,data} = props ?? {};
+
+          return  improveOrchestrationArchitecture(taskId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ImproveOrchestrationArchitectureMutationResult = NonNullable<Awaited<ReturnType<typeof improveOrchestrationArchitecture>>>
+    export type ImproveOrchestrationArchitectureMutationBody = BodyType<OrchestrationImproveInput>
+    export type ImproveOrchestrationArchitectureMutationError = ErrorType<unknown>
+    export type ImproveOrchestrationArchitectureMutationVariables = {taskId: string;data: BodyType<OrchestrationImproveInput>}
+
+    export const useImproveOrchestrationArchitecture = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof improveOrchestrationArchitecture>>, TError,ImproveOrchestrationArchitectureMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof improveOrchestrationArchitecture>>,
+        TError,
+        ImproveOrchestrationArchitectureMutationVariables,
+        TContext
+      > => {
+      return useMutation(getImproveOrchestrationArchitectureMutationOptions(options));
+    }
+
+export const getReviewOrchestrationArchitectureUrl = (taskId: string,) => {
+
+
+
+
+  return `/api/orchestration/tasks/${taskId}/gemini-review`
+}
+
+/**
+ * User-triggered synchronous Gemini review of a saved architecture draft or plan. Does not approve, run code, start a worker, or merge.
+ */
+export const reviewOrchestrationArchitecture = async (taskId: string,
+    orchestrationAiActionInput: OrchestrationAiActionInput, options?: Parameters<typeof customFetch>[1]): Promise<OrchestrationTaskDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrchestrationTaskDetail>(getReviewOrchestrationArchitectureUrl(taskId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(orchestrationAiActionInput)
+  }
+);}
+
+
+
+
+
+export const getReviewOrchestrationArchitectureMutationKey = () => ['reviewOrchestrationArchitecture'] as const;
+
+export const getReviewOrchestrationArchitectureMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewOrchestrationArchitecture>>, TError,ReviewOrchestrationArchitectureMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof reviewOrchestrationArchitecture>>, TError,ReviewOrchestrationArchitectureMutationVariables, TContext> => {
+
+const mutationKey = getReviewOrchestrationArchitectureMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof reviewOrchestrationArchitecture>>, ReviewOrchestrationArchitectureMutationVariables> = (props) => {
+          const {taskId,data} = props ?? {};
+
+          return  reviewOrchestrationArchitecture(taskId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReviewOrchestrationArchitectureMutationResult = NonNullable<Awaited<ReturnType<typeof reviewOrchestrationArchitecture>>>
+    export type ReviewOrchestrationArchitectureMutationBody = BodyType<OrchestrationAiActionInput>
+    export type ReviewOrchestrationArchitectureMutationError = ErrorType<unknown>
+    export type ReviewOrchestrationArchitectureMutationVariables = {taskId: string;data: BodyType<OrchestrationAiActionInput>}
+
+    export const useReviewOrchestrationArchitecture = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewOrchestrationArchitecture>>, TError,ReviewOrchestrationArchitectureMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof reviewOrchestrationArchitecture>>,
+        TError,
+        ReviewOrchestrationArchitectureMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReviewOrchestrationArchitectureMutationOptions(options));
+    }
+
+export const getValidateOrchestrationImplementationUrl = (taskId: string,) => {
+
+
+
+
+  return `/api/orchestration/tasks/${taskId}/gemini-validation`
+}
+
+/**
+ * User-triggered synchronous Gemini validation of user-supplied implementation notes against an approved plan. Does not execute, approve, or merge.
+ */
+export const validateOrchestrationImplementation = async (taskId: string,
+    orchestrationValidationInput: OrchestrationValidationInput, options?: Parameters<typeof customFetch>[1]): Promise<OrchestrationTaskDetail> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrchestrationTaskDetail>(getValidateOrchestrationImplementationUrl(taskId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(orchestrationValidationInput)
+  }
+);}
+
+
+
+
+
+export const getValidateOrchestrationImplementationMutationKey = () => ['validateOrchestrationImplementation'] as const;
+
+export const getValidateOrchestrationImplementationMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateOrchestrationImplementation>>, TError,ValidateOrchestrationImplementationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof validateOrchestrationImplementation>>, TError,ValidateOrchestrationImplementationMutationVariables, TContext> => {
+
+const mutationKey = getValidateOrchestrationImplementationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof validateOrchestrationImplementation>>, ValidateOrchestrationImplementationMutationVariables> = (props) => {
+          const {taskId,data} = props ?? {};
+
+          return  validateOrchestrationImplementation(taskId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ValidateOrchestrationImplementationMutationResult = NonNullable<Awaited<ReturnType<typeof validateOrchestrationImplementation>>>
+    export type ValidateOrchestrationImplementationMutationBody = BodyType<OrchestrationValidationInput>
+    export type ValidateOrchestrationImplementationMutationError = ErrorType<unknown>
+    export type ValidateOrchestrationImplementationMutationVariables = {taskId: string;data: BodyType<OrchestrationValidationInput>}
+
+    export const useValidateOrchestrationImplementation = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof validateOrchestrationImplementation>>, TError,ValidateOrchestrationImplementationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof validateOrchestrationImplementation>>,
+        TError,
+        ValidateOrchestrationImplementationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getValidateOrchestrationImplementationMutationOptions(options));
     }
 
 export const getGetSystemStatusUrl = () => {

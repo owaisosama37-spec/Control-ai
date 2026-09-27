@@ -15,7 +15,23 @@
  */
 import type { Activity } from './activity';
 import type { OrchestrationTask } from './orchestrationTask';
+import type { OrchestrationTaskDetailAiArchitectureReviewSource } from './orchestrationTaskDetailAiArchitectureReviewSource';
 
-export type OrchestrationTaskDetail = OrchestrationTask & {
+export type OrchestrationTaskDetail = OrchestrationTask & ({
   history: Activity[];
-};
+  /** @maxLength 12000 */
+  ai_architecture_draft: string;
+  /** @nullable */
+  ai_architecture_updated_at: Date | null;
+  /** @maxLength 12000 */
+  ai_architecture_review: string;
+  ai_architecture_review_source: OrchestrationTaskDetailAiArchitectureReviewSource;
+  /** @nullable */
+  ai_architecture_reviewed_at: Date | null;
+  /** @maxLength 12000 */
+  ai_implementation_result: string;
+  /** @maxLength 12000 */
+  ai_implementation_validation: string;
+  /** @nullable */
+  ai_implementation_validated_at: Date | null;
+});
