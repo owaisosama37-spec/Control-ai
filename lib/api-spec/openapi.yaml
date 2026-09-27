@@ -215,6 +215,104 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { $ref: "#/components/schemas/Activity" } }
+  /orchestration/tasks:
+    get:
+      operationId: listOrchestrationTasks
+      description: Manual task queue in the selected room. No agent runs when a task is approved.
+      responses:
+        "200":
+          description: Up to 100 most recently updated room tasks
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/OrchestrationTask" } }
+    post:
+      operationId: createOrchestrationTask
+      description: Owner or editor creates a task under an existing room project.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrchestrationTaskInput" }
+      responses:
+        "201":
+          description: Task created in draft; no model request or worker invocation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrchestrationTask" }
+  /orchestration/tasks/{taskId}:
+    parameters:
+      - { name: taskId, in: path, required: true, schema: { type: string } }
+    get:
+      operationId: getOrchestrationTask
+      responses:
+        "200":
+          description: Task and signed activity, scoped to selected room
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrchestrationTaskDetail" }
+  /orchestration/tasks/{taskId}/plan:
+    put:
+      operationId: submitOrchestrationPlan
+      description: Owner or editor records a manually prepared plan; never impersonates Claude.
+      parameters:
+        - { name: taskId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrchestrationPlanInput" }
+      responses:
+        "200":
+          description: Plan awaiting owner approval
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrchestrationTask" }
+  /orchestration/tasks/{taskId}/decision:
+    put:
+      operationId: decideOrchestrationPlan
+      description: Only the authenticated room owner can approve or reject a plan. Approval does not dispatch an executor.
+      parameters:
+        - { name: taskId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrchestrationDecisionInput" }
+      responses:
+        "200":
+          description: Owner decision recorded, without running code or merging
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrchestrationTask" }
+  /orchestration/tasks/{taskId}/pause:
+    put:
+      operationId: pauseOrchestrationTask
+      description: Owner pauses a manual task. No worker is installed.
+      parameters:
+        - { name: taskId, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OrchestrationPauseInput" }
+      responses:
+        "200":
+          description: Task paused
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrchestrationTask" }
+  /orchestration/tasks/{taskId}/resume:
+    put:
+      operationId: resumeOrchestrationTask
+      description: Owner resumes the manual task to its previous state.
+      parameters:
+        - { name: taskId, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Task resumed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OrchestrationTask" }
   /system/status:
     get:
       operationId: getSystemStatus
@@ -384,6 +482,57 @@ components:
         description: { type: string }
         created_at: { type: string }
         verified: { type: boolean }
+    OrchestrationTaskStatus:
+      type: string
+      enum: [draft, plan_proposed, plan_approved, rejected, paused]
+    OrchestrationTaskInput:
+      type: object
+      required: [project_id, title, requirement]
+      properties:
+        project_id: { type: string, minLength: 1, maxLength: 80 }
+        title: { type: string, minLength: 3, maxLength: 160 }
+        requirement: { type: string, minLength: 10, maxLength: 5000 }
+    OrchestrationPlanInput:
+      type: object
+      required: [plan, expected_status]
+      properties:
+        plan: { type: string, minLength: 20, maxLength: 12000 }
+        expected_status: { type: string, enum: [draft, rejected] }
+    OrchestrationDecisionInput:
+      type: object
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [approve, reject] }
+        reason: { type: string, maxLength: 2000 }
+    OrchestrationPauseInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 3, maxLength: 1000 }
+    OrchestrationTask:
+      type: object
+      required: [id, project_id, title, requirement, status, plan, plan_source, created_at, updated_at, approved_by, approved_at, paused_from, rejection_reason]
+      properties:
+        id: { type: string }
+        project_id: { type: string }
+        title: { type: string }
+        requirement: { type: string }
+        status: { $ref: "#/components/schemas/OrchestrationTaskStatus" }
+        plan: { type: string }
+        plan_source: { type: string, enum: [manual] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        approved_by: { type: [string, "null"] }
+        approved_at: { type: [string, "null"], format: date-time }
+        paused_from: { type: [string, "null"] }
+        rejection_reason: { type: string }
+    OrchestrationTaskDetail:
+      allOf:
+        - $ref: "#/components/schemas/OrchestrationTask"
+        - type: object
+          required: [history]
+          properties:
+            history: { type: array, items: { $ref: "#/components/schemas/Activity" } }
     IntegrationStatus:
       type: object
       required: [name, status, description]

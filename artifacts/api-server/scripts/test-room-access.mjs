@@ -12,9 +12,10 @@ import { pathToFileURL } from "node:url";
 const memberships = [];
 const records = [];
 const roomControls = [];
+const orchestrationTasks = [];
 let calls = [];
 const matches = (r, f) => Object.entries(f).every(([k, v]) => v === null ? r[k] == null : r[k] === v);
-const query = value => ({ select() { return this; }, sort() { return this; }, session() { return this; }, lean: async () => structuredClone(value), then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
+const query = value => ({ select() { return this; }, sort() { return this; }, limit() { return this; }, session() { return this; }, lean: async () => structuredClone(value), then: (resolve, reject) => Promise.resolve(value).then(resolve, reject) });
 const Membership = {
   find: f => query(memberships.filter(r => matches(r, f))),
   findOne: f => query(memberships.find(r => matches(r, f))),
@@ -42,6 +43,24 @@ const ProjectModel = {
     return r;
   },
   aggregate: async pipeline => { calls.push(pipeline[0].$match); return []; },
+};
+const OrchestrationTaskModel = {
+  find: f => query(orchestrationTasks.filter(r => matches(r, f))),
+  findOne: f => query(orchestrationTasks.find(r => matches(r, f))),
+  create: async data => {
+    const task = { status: "draft", plan: "", plan_source: "manual", approved_by: null, approved_at: null,
+      paused_from: null, rejection_reason: "", created_at: new Date(), updated_at: new Date(), ...data };
+    orchestrationTasks.push(task);
+    return task;
+  },
+  findOneAndUpdate: async (f, update) => {
+    const task = orchestrationTasks.find(r => matches(r, f));
+    if (!task) return null;
+    Object.assign(task, update.$set);
+    task.room_events.push(update.$push.room_events);
+    return task;
+  },
+  aggregate: async () => [],
 };
 const RoomControl = {
   init: async () => {},
@@ -79,7 +98,10 @@ globalThis.__roomTest = {
       }
     },
   } },
-  Membership, ProjectModel, RoomControl,
+  Membership, ProjectModel, RoomControl, OrchestrationTaskModel,
+  serializeTask: (task, detail = false) => ({ id: task.task_id, project_id: task.project_id,
+    title: task.title, requirement: task.requirement, plan: task.plan, status: task.status,
+    ...(detail ? { history: task.room_events } : {}) }),
   serializeProject: p => ({ project_id: p.project_id, name: p.name, status: p.status }),
   event: (actor, id, name, action, description) => ({ actor, project_id: id, project_name: name, action, description }), activity: e => e,
   transitions: { draft: ["approved_plan", "rejected"], approved_plan: ["awaiting_review"], awaiting_review: ["merged", "rejected"], rejected: ["draft"], merged: ["paused"], paused: ["merged"] },
@@ -97,6 +119,7 @@ await build({
       [/\/lib\/teams$/, ["Membership"]],
       [/\/lib\/room-control$/, ["RoomControl"]],
       [/\/lib\/projects$/, ["ProjectModel", "serializeProject", "event", "activity", "transitions"]],
+      [/\/lib\/orchestration-tasks$/, ["OrchestrationTaskModel", "serializeTask"]],
       [/^\.\/logger$/, ["logger"]],
     ]) {
       b.onResolve({ filter }, args => ({ path: names.join(","), namespace: "adapter" }));
@@ -184,6 +207,48 @@ try {
     assert.ok(calls.every(f => f.owner_id === "user_owner"));
     assert.equal((await request("DELETE", `/projects/${id}`, "user_owner")).status, 204);
   });
+  await test("manual task plans remain room-scoped, owner-approved, and never execute or merge", async () => {
+    const project = await request("POST", "/projects", "user_owner", null, input);
+    const { project_id } = await project.json();
+    const body = { project_id, title: "Check access rules", requirement: "Review the access boundaries before implementation." };
+    assert.equal((await request("POST", "/orchestration/tasks", "user_viewer", "user_owner", body)).status, 403);
+    assert.equal((await request("POST", "/orchestration/tasks", "user_reviewer", "user_owner", body)).status, 403);
+    assert.equal((await request("POST", "/orchestration/tasks", "user_other", null, body)).status, 404);
+    const created = await request("POST", "/orchestration/tasks", "user_editor", "user_owner", body);
+    assert.equal(created.status, 201);
+    const task = await created.json();
+    assert.equal(task.status, "draft");
+    assert.equal((await request("GET", `/orchestration/tasks/${task.id}`, "user_other")).status, 404);
+    assert.equal((await request("GET", `/orchestration/tasks/${task.id}`, "user_reviewer", "user_owner")).status, 200);
+    assert.equal((await (await request("GET", "/orchestration/tasks", "user_other")).json()).length, 0);
+    const plan = { plan: "Check each permission and create isolated integration checks before changing any production state.",
+      expected_status: "draft" };
+    assert.equal((await request("PUT", `/orchestration/tasks/${task.id}/plan`, "user_reviewer", "user_owner", plan)).status, 403);
+    assert.equal((await request("PUT", `/orchestration/tasks/${task.id}/plan`, "user_editor", "user_owner", plan)).status, 200);
+    assert.equal((await request("PUT", `/orchestration/tasks/${task.id}/plan`, "user_editor", "user_owner", plan)).status, 409);
+    assert.equal((await request("PUT", `/orchestration/tasks/${task.id}/decision`, "user_reviewer", "user_owner", { decision: "approve" })).status, 403);
+    assert.equal((await request("PUT", `/orchestration/tasks/${task.id}/decision`, "user_owner", null, { decision: "approve" })).status, 200);
+    assert.equal((await request("PUT", `/orchestration/tasks/${task.id}/decision`, "user_owner", null, { decision: "approve" })).status, 409);
+    const stored = orchestrationTasks.find(t => t.task_id === task.id);
+    assert.equal(stored.status, "plan_approved");
+    assert.equal(stored.approved_by, "user_owner");
+    assert.equal(stored.plan_source, "manual");
+    assert.equal(stored.room_events.at(-1).action, "plan_approved_manual");
+    assert.equal((await request("PUT", `/orchestration/tasks/${task.id}/pause`, "user_editor", "user_owner", { reason: "Wait for owner" })).status, 403);
+    assert.equal((await request("PUT", `/orchestration/tasks/${task.id}/pause`, "user_owner", null, { reason: "Wait for owner" })).status, 200);
+    assert.equal((await request("PUT", `/orchestration/tasks/${task.id}/resume`, "user_owner")).status, 200);
+    assert.equal(stored.status, "plan_approved");
+    const detail = await (await request("GET", `/orchestration/tasks/${task.id}`, "user_owner")).json();
+    assert.equal(detail.history.length, 5);
+    assert.equal(detail.history[0].actor, "user_editor");
+    const rejected = await (await request("POST", "/orchestration/tasks", "user_owner", null, body)).json();
+    assert.equal((await request("PUT", `/orchestration/tasks/${rejected.id}/plan`, "user_owner", null, plan)).status, 200);
+    assert.equal((await request("PUT", `/orchestration/tasks/${rejected.id}/decision`, "user_owner", null, { decision: "reject" })).status, 400);
+    assert.equal((await request("PUT", `/orchestration/tasks/${rejected.id}/decision`, "user_owner", null,
+      { decision: "reject", reason: "Revise the scope" })).status, 200);
+    assert.equal((await request("PUT", `/orchestration/tasks/${rejected.id}/plan`, "user_editor", "user_owner",
+      { ...plan, expected_status: "rejected" })).status, 200);
+  });
   await test("only owner can stop or resume a room; reads continue but room mutations freeze", async () => {
     assert.equal((await request("POST", "/emergency-stop", "user_stranger", "user_owner")).status, 403);
     assert.equal((await request("POST", "/emergency-stop", "user_reviewer", "user_owner")).status, 403);
@@ -193,6 +258,8 @@ try {
     assert.equal((await request("GET", "/projects", "user_owner")).status, 200);
     assert.equal((await request("POST", "/projects", "user_owner", null, input)).status, 423);
     assert.equal((await request("PUT", "/members", "user_owner", null, { user_id: "user_editor", role: "viewer" })).status, 423);
+    assert.equal((await request("POST", "/orchestration/tasks", "user_owner", null,
+      { project_id: "anything", title: "Blocked task", requirement: "Should not be created when room is stopped." })).status, 423);
     assert.equal((await request("POST", "/projects", "user_other", null, input)).status, 201);
     assert.equal((await request("POST", "/emergency-resume", "user_reviewer", "user_owner")).status, 403);
     assert.equal((await request("POST", "/emergency-resume", "user_owner")).status, 200);

@@ -6,6 +6,8 @@ import { CreateProjectBody, UpdateProjectBody, TransitionProjectBody, SaveMember
 import { connectMongo, mongoose } from "../lib/mongo";
 import { getClerkMode, getRuntimeEnvironment } from "../lib/config";
 import { ProjectModel, serializeProject, event, activity, transitions } from "../lib/projects";
+import { OrchestrationTaskModel } from "../lib/orchestration-tasks";
+import orchestrationRouter from "./orchestration";
 import { Membership } from "../lib/teams";
 import { RoomControl } from "../lib/room-control";
 import { allows, roomFilter } from "../lib/permissions";
@@ -113,6 +115,8 @@ router.get("/operations", async (_req, res) => {
   res.json({ stopped: Boolean(control?.stopped_at), stopped_at: control?.stopped_at?.toISOString() ?? null,
     autonomous_execution: false });
 });
+
+router.use("/orchestration", orchestrationRouter);
 
 router.post("/emergency-stop", async (_req, res) => {
   await RoomControl.init();
@@ -310,13 +314,18 @@ router.get("/dashboard", async (_req, res) => {
 });
 
 router.get("/audit", async (_req, res) => {
-  const [projectEvents, controlEvents] = await Promise.all([ProjectModel.aggregate([
+  const [projectEvents, taskEvents, controlEvents] = await Promise.all([ProjectModel.aggregate([
+    { $match: { owner_id: res.locals.owner } },
+    { $unwind: "$room_events" },
+    { $replaceRoot: { newRoot: "$room_events" } },
+    { $sort: { created_at: -1 } }, { $limit: 200 },
+  ]), OrchestrationTaskModel.aggregate([
     { $match: { owner_id: res.locals.owner } },
     { $unwind: "$room_events" },
     { $replaceRoot: { newRoot: "$room_events" } },
     { $sort: { created_at: -1 } }, { $limit: 200 },
   ]), RoomControl.findOne({ owner_id: res.locals.owner }).select("room_events").lean()]);
-  const events = [...projectEvents, ...(controlEvents?.room_events ?? [])]
+  const events = [...projectEvents, ...taskEvents, ...(controlEvents?.room_events ?? [])]
     .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at))).slice(0, 200);
   res.json(events.map(activity));
 });

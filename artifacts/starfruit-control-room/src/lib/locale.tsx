@@ -20,7 +20,7 @@ const arabic: Record<string, string> = {
   "A single project view":"نظرة موحّدة للمشاريع", "From first draft to final review. Keep priorities, context, and cost alongside the work.":"من المسودة الأولى إلى المراجعة النهائية. احتفظ بالأولويات والتفاصيل والتكاليف بجانب كل مشروع.",
   "Decisions with a record":"قرارات موثّقة", "Status changes are recorded with signed activity, so the history stays clear.":"تُسجّل تغييرات الحالة في سجل نشاط موقّع لسهولة تتبع القرارات.",
   "Your private workspace":"مساحة عمل خاصة", "Secure sign-in and account-isolated project data, persisted in MongoDB.":"تسجيل دخول آمن وبيانات مشاريع مستقلة لكل حساب ومحفوظة في MongoDB.",
-  "Overview":"نظرة عامة", "Projects":"المشاريع", "Approvals":"الموافقات", "Activity log":"سجل النشاط", "Connections":"الاتصالات", "Project":"مشروع",
+  "Overview":"نظرة عامة", "Projects":"المشاريع", "Task plans":"خطط المهام", "Approvals":"الموافقات", "Activity log":"سجل النشاط", "Connections":"الاتصالات", "Project":"مشروع",
   "WORKSPACE":"مساحة العمل", "Private control room":"غرفة تحكم خاصة", "Your projects. Your decisions.":"مشاريعك. قراراتك.", "Visible only to your account.":"مرئية لحسابك فقط.",
   "Sign out":"تسجيل الخروج", "Open navigation":"افتح القائمة", "Close navigation":"أغلق القائمة", "Manual operations":"عمليات يدوية", "Workspace":"مساحة العمل", "Your account":"حسابك",
   "Welcome back":"مرحبًا بعودتك", "Sign in to your Starfruit control room":"سجّل دخولك إلى غرفة تحكم Starfruit",

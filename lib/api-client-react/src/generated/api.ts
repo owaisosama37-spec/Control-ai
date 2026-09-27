@@ -36,6 +36,12 @@ import type {
   IntegrationConfiguration,
   IntegrationTestResult,
   MemberInput,
+  OrchestrationDecisionInput,
+  OrchestrationPauseInput,
+  OrchestrationPlanInput,
+  OrchestrationTask,
+  OrchestrationTaskDetail,
+  OrchestrationTaskInput,
   Project,
   ProjectInput,
   ReceiveGitHubWebhook200,
@@ -1268,6 +1274,565 @@ export function useListActivity<TData = Awaited<ReturnType<typeof listActivity>>
 
 
 
+
+export const getListOrchestrationTasksUrl = () => {
+
+
+
+
+  return `/api/orchestration/tasks`
+}
+
+/**
+ * Manual task queue in the selected room. No agent runs when a task is approved.
+ */
+export const listOrchestrationTasks = async ( options?: Parameters<typeof customFetch>[1]): Promise<OrchestrationTask[]> => {
+
+  return customFetch<OrchestrationTask[]>(getListOrchestrationTasksUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListOrchestrationTasksQueryKey = () => {
+    return [
+    `/api/orchestration/tasks`
+    ] as const;
+    }
+
+
+export const getListOrchestrationTasksQueryOptions = <TData = Awaited<ReturnType<typeof listOrchestrationTasks>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrchestrationTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListOrchestrationTasksQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listOrchestrationTasks>>> = ({ signal }) => listOrchestrationTasks({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listOrchestrationTasks>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListOrchestrationTasksQueryResult = NonNullable<Awaited<ReturnType<typeof listOrchestrationTasks>>>
+export type ListOrchestrationTasksQueryError = ErrorType<unknown>
+
+
+
+export function useListOrchestrationTasks<TData = Awaited<ReturnType<typeof listOrchestrationTasks>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listOrchestrationTasks>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListOrchestrationTasksQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateOrchestrationTaskUrl = () => {
+
+
+
+
+  return `/api/orchestration/tasks`
+}
+
+/**
+ * Owner or editor creates a task under an existing room project.
+ */
+export const createOrchestrationTask = async (orchestrationTaskInput: OrchestrationTaskInput, options?: Parameters<typeof customFetch>[1]): Promise<OrchestrationTask> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrchestrationTask>(getCreateOrchestrationTaskUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(orchestrationTaskInput)
+  }
+);}
+
+
+
+
+
+export const getCreateOrchestrationTaskMutationKey = () => ['createOrchestrationTask'] as const;
+
+export const getCreateOrchestrationTaskMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrchestrationTask>>, TError,CreateOrchestrationTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createOrchestrationTask>>, TError,CreateOrchestrationTaskMutationVariables, TContext> => {
+
+const mutationKey = getCreateOrchestrationTaskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createOrchestrationTask>>, CreateOrchestrationTaskMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createOrchestrationTask(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateOrchestrationTaskMutationResult = NonNullable<Awaited<ReturnType<typeof createOrchestrationTask>>>
+    export type CreateOrchestrationTaskMutationBody = BodyType<OrchestrationTaskInput>
+    export type CreateOrchestrationTaskMutationError = ErrorType<unknown>
+    export type CreateOrchestrationTaskMutationVariables = {data: BodyType<OrchestrationTaskInput>}
+
+    export const useCreateOrchestrationTask = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createOrchestrationTask>>, TError,CreateOrchestrationTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createOrchestrationTask>>,
+        TError,
+        CreateOrchestrationTaskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateOrchestrationTaskMutationOptions(options));
+    }
+
+export const getGetOrchestrationTaskUrl = (taskId: string,) => {
+
+
+
+
+  return `/api/orchestration/tasks/${taskId}`
+}
+
+export const getOrchestrationTask = async (taskId: string, options?: Parameters<typeof customFetch>[1]): Promise<OrchestrationTaskDetail> => {
+
+  return customFetch<OrchestrationTaskDetail>(getGetOrchestrationTaskUrl(taskId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrchestrationTaskQueryKey = (taskId: string,) => {
+    return [
+    `/api/orchestration/tasks/${taskId}`
+    ] as const;
+    }
+
+
+export const getGetOrchestrationTaskQueryOptions = <TData = Awaited<ReturnType<typeof getOrchestrationTask>>, TError = ErrorType<unknown>>(taskId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrchestrationTask>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOrchestrationTaskQueryKey(taskId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrchestrationTask>>> = ({ signal }) => getOrchestrationTask(taskId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: taskId !== null && taskId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrchestrationTask>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOrchestrationTaskQueryResult = NonNullable<Awaited<ReturnType<typeof getOrchestrationTask>>>
+export type GetOrchestrationTaskQueryError = ErrorType<unknown>
+
+
+
+export function useGetOrchestrationTask<TData = Awaited<ReturnType<typeof getOrchestrationTask>>, TError = ErrorType<unknown>>(
+ taskId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrchestrationTask>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOrchestrationTaskQueryOptions(taskId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSubmitOrchestrationPlanUrl = (taskId: string,) => {
+
+
+
+
+  return `/api/orchestration/tasks/${taskId}/plan`
+}
+
+/**
+ * Owner or editor records a manually prepared plan; never impersonates Claude.
+ */
+export const submitOrchestrationPlan = async (taskId: string,
+    orchestrationPlanInput: OrchestrationPlanInput, options?: Parameters<typeof customFetch>[1]): Promise<OrchestrationTask> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrchestrationTask>(getSubmitOrchestrationPlanUrl(taskId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(orchestrationPlanInput)
+  }
+);}
+
+
+
+
+
+export const getSubmitOrchestrationPlanMutationKey = () => ['submitOrchestrationPlan'] as const;
+
+export const getSubmitOrchestrationPlanMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitOrchestrationPlan>>, TError,SubmitOrchestrationPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof submitOrchestrationPlan>>, TError,SubmitOrchestrationPlanMutationVariables, TContext> => {
+
+const mutationKey = getSubmitOrchestrationPlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitOrchestrationPlan>>, SubmitOrchestrationPlanMutationVariables> = (props) => {
+          const {taskId,data} = props ?? {};
+
+          return  submitOrchestrationPlan(taskId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SubmitOrchestrationPlanMutationResult = NonNullable<Awaited<ReturnType<typeof submitOrchestrationPlan>>>
+    export type SubmitOrchestrationPlanMutationBody = BodyType<OrchestrationPlanInput>
+    export type SubmitOrchestrationPlanMutationError = ErrorType<unknown>
+    export type SubmitOrchestrationPlanMutationVariables = {taskId: string;data: BodyType<OrchestrationPlanInput>}
+
+    export const useSubmitOrchestrationPlan = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitOrchestrationPlan>>, TError,SubmitOrchestrationPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof submitOrchestrationPlan>>,
+        TError,
+        SubmitOrchestrationPlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSubmitOrchestrationPlanMutationOptions(options));
+    }
+
+export const getDecideOrchestrationPlanUrl = (taskId: string,) => {
+
+
+
+
+  return `/api/orchestration/tasks/${taskId}/decision`
+}
+
+/**
+ * Only the authenticated room owner can approve or reject a plan. Approval does not dispatch an executor.
+ */
+export const decideOrchestrationPlan = async (taskId: string,
+    orchestrationDecisionInput: OrchestrationDecisionInput, options?: Parameters<typeof customFetch>[1]): Promise<OrchestrationTask> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrchestrationTask>(getDecideOrchestrationPlanUrl(taskId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(orchestrationDecisionInput)
+  }
+);}
+
+
+
+
+
+export const getDecideOrchestrationPlanMutationKey = () => ['decideOrchestrationPlan'] as const;
+
+export const getDecideOrchestrationPlanMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideOrchestrationPlan>>, TError,DecideOrchestrationPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof decideOrchestrationPlan>>, TError,DecideOrchestrationPlanMutationVariables, TContext> => {
+
+const mutationKey = getDecideOrchestrationPlanMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof decideOrchestrationPlan>>, DecideOrchestrationPlanMutationVariables> = (props) => {
+          const {taskId,data} = props ?? {};
+
+          return  decideOrchestrationPlan(taskId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DecideOrchestrationPlanMutationResult = NonNullable<Awaited<ReturnType<typeof decideOrchestrationPlan>>>
+    export type DecideOrchestrationPlanMutationBody = BodyType<OrchestrationDecisionInput>
+    export type DecideOrchestrationPlanMutationError = ErrorType<unknown>
+    export type DecideOrchestrationPlanMutationVariables = {taskId: string;data: BodyType<OrchestrationDecisionInput>}
+
+    export const useDecideOrchestrationPlan = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof decideOrchestrationPlan>>, TError,DecideOrchestrationPlanMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof decideOrchestrationPlan>>,
+        TError,
+        DecideOrchestrationPlanMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDecideOrchestrationPlanMutationOptions(options));
+    }
+
+export const getPauseOrchestrationTaskUrl = (taskId: string,) => {
+
+
+
+
+  return `/api/orchestration/tasks/${taskId}/pause`
+}
+
+/**
+ * Owner pauses a manual task. No worker is installed.
+ */
+export const pauseOrchestrationTask = async (taskId: string,
+    orchestrationPauseInput: OrchestrationPauseInput, options?: Parameters<typeof customFetch>[1]): Promise<OrchestrationTask> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<OrchestrationTask>(getPauseOrchestrationTaskUrl(taskId),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(orchestrationPauseInput)
+  }
+);}
+
+
+
+
+
+export const getPauseOrchestrationTaskMutationKey = () => ['pauseOrchestrationTask'] as const;
+
+export const getPauseOrchestrationTaskMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseOrchestrationTask>>, TError,PauseOrchestrationTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof pauseOrchestrationTask>>, TError,PauseOrchestrationTaskMutationVariables, TContext> => {
+
+const mutationKey = getPauseOrchestrationTaskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof pauseOrchestrationTask>>, PauseOrchestrationTaskMutationVariables> = (props) => {
+          const {taskId,data} = props ?? {};
+
+          return  pauseOrchestrationTask(taskId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PauseOrchestrationTaskMutationResult = NonNullable<Awaited<ReturnType<typeof pauseOrchestrationTask>>>
+    export type PauseOrchestrationTaskMutationBody = BodyType<OrchestrationPauseInput>
+    export type PauseOrchestrationTaskMutationError = ErrorType<unknown>
+    export type PauseOrchestrationTaskMutationVariables = {taskId: string;data: BodyType<OrchestrationPauseInput>}
+
+    export const usePauseOrchestrationTask = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof pauseOrchestrationTask>>, TError,PauseOrchestrationTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof pauseOrchestrationTask>>,
+        TError,
+        PauseOrchestrationTaskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getPauseOrchestrationTaskMutationOptions(options));
+    }
+
+export const getResumeOrchestrationTaskUrl = (taskId: string,) => {
+
+
+
+
+  return `/api/orchestration/tasks/${taskId}/resume`
+}
+
+/**
+ * Owner resumes the manual task to its previous state.
+ */
+export const resumeOrchestrationTask = async (taskId: string, options?: Parameters<typeof customFetch>[1]): Promise<OrchestrationTask> => {
+
+  return customFetch<OrchestrationTask>(getResumeOrchestrationTaskUrl(taskId),
+  {
+    ...options,
+    method: 'PUT'
+
+
+  }
+);}
+
+
+
+
+
+export const getResumeOrchestrationTaskMutationKey = () => ['resumeOrchestrationTask'] as const;
+
+export const getResumeOrchestrationTaskMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeOrchestrationTask>>, TError,ResumeOrchestrationTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resumeOrchestrationTask>>, TError,ResumeOrchestrationTaskMutationVariables, TContext> => {
+
+const mutationKey = getResumeOrchestrationTaskMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resumeOrchestrationTask>>, ResumeOrchestrationTaskMutationVariables> = (props) => {
+          const {taskId} = props ?? {};
+
+          return  resumeOrchestrationTask(taskId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResumeOrchestrationTaskMutationResult = NonNullable<Awaited<ReturnType<typeof resumeOrchestrationTask>>>
+
+    export type ResumeOrchestrationTaskMutationError = ErrorType<unknown>
+    export type ResumeOrchestrationTaskMutationVariables = {taskId: string}
+
+    export const useResumeOrchestrationTask = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resumeOrchestrationTask>>, TError,ResumeOrchestrationTaskMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resumeOrchestrationTask>>,
+        TError,
+        ResumeOrchestrationTaskMutationVariables,
+        TContext
+      > => {
+      return useMutation(getResumeOrchestrationTaskMutationOptions(options));
+    }
 
 export const getGetSystemStatusUrl = () => {
 

@@ -6,10 +6,11 @@ import { dark } from "@clerk/themes";
 import { arSA } from "@clerk/localizations";
 import { LocaleProvider, useLocale } from "@/lib/locale";
 import { Router, Switch, Route, Link, Redirect, useLocation } from "wouter";
-import { LayoutDashboard, Layers, CheckCheck, ScrollText, Plug, LogOut, ShieldCheck, Menu, X, ArrowUpRight, GitBranch, LockKeyhole, Activity } from "lucide-react";
+import { LayoutDashboard, Layers, CheckCheck, ScrollText, Plug, LogOut, ShieldCheck, Menu, X, ArrowUpRight, GitBranch, LockKeyhole, Activity, ListTodo } from "lucide-react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { DashboardPage, ProjectsPage, ProjectPage, ActivityPage, SettingsPage } from "@/pages/room";
+import { OrchestrationPage } from "@/pages/orchestration";
 import NotFound from "@/pages/not-found";
 import { TeamBoundary, TeamPage } from "@/components/team";
 import { setRoomOwner } from "@workspace/api-client-react";
@@ -62,6 +63,7 @@ function Landing() {
 }
 const navigation = [
   ["/dashboard","Overview",LayoutDashboard], ["/projects","Projects",Layers],
+  ["/orchestration","Task plans",ListTodo],
   ["/approvals","Approvals",CheckCheck], ["/activity","Activity log",ScrollText], ["/settings","Connections",Plug],
   ["/team","Team & access",ShieldCheck],
 ] as const;
@@ -86,6 +88,7 @@ function Room() {
         <Route path="/dashboard" component={DashboardPage} />
         <Route path="/projects">{()=><ProjectsPage />}</Route>
         <Route path="/projects/:id">{params=><ProjectPage id={params.id} />}</Route>
+        <Route path="/orchestration" component={OrchestrationPage} />
         <Route path="/approvals">{()=><ProjectsPage approvals />}</Route>
         <Route path="/activity" component={ActivityPage} />
         <Route path="/settings" component={SettingsPage} />

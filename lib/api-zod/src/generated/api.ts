@@ -372,6 +372,219 @@ export const ListActivityResponseItem = zod.object({
 export const ListActivityResponse = zod.array(ListActivityResponseItem)
 
 
+/**
+ * Manual task queue in the selected room. No agent runs when a task is approved.
+ */
+export const ListOrchestrationTasksResponseItem = zod.object({
+  "id": zod.string(),
+  "project_id": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "status": zod.enum(['draft', 'plan_proposed', 'plan_approved', 'rejected', 'paused']),
+  "plan": zod.string(),
+  "plan_source": zod.enum(['manual']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "approved_by": zod.string().nullable(),
+  "approved_at": zod.coerce.date().nullable(),
+  "paused_from": zod.string().nullable(),
+  "rejection_reason": zod.string()
+})
+export const ListOrchestrationTasksResponse = zod.array(ListOrchestrationTasksResponseItem)
+
+
+/**
+ * Owner or editor creates a task under an existing room project.
+ */
+export const createOrchestrationTaskBodyProjectIdMax = 80;
+
+export const createOrchestrationTaskBodyTitleMin = 3;
+export const createOrchestrationTaskBodyTitleMax = 160;
+
+export const createOrchestrationTaskBodyRequirementMin = 10;
+export const createOrchestrationTaskBodyRequirementMax = 5000;
+
+
+
+export const CreateOrchestrationTaskBody = zod.object({
+  "project_id": zod.string().min(1).max(createOrchestrationTaskBodyProjectIdMax),
+  "title": zod.string().min(createOrchestrationTaskBodyTitleMin).max(createOrchestrationTaskBodyTitleMax),
+  "requirement": zod.string().min(createOrchestrationTaskBodyRequirementMin).max(createOrchestrationTaskBodyRequirementMax)
+})
+
+export const CreateOrchestrationTaskResponse = zod.object({
+  "id": zod.string(),
+  "project_id": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "status": zod.enum(['draft', 'plan_proposed', 'plan_approved', 'rejected', 'paused']),
+  "plan": zod.string(),
+  "plan_source": zod.enum(['manual']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "approved_by": zod.string().nullable(),
+  "approved_at": zod.coerce.date().nullable(),
+  "paused_from": zod.string().nullable(),
+  "rejection_reason": zod.string()
+})
+
+
+export const GetOrchestrationTaskParams = zod.object({
+  "taskId": zod.coerce.string()
+})
+
+export const GetOrchestrationTaskResponse = zod.object({
+  "id": zod.string(),
+  "project_id": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "status": zod.enum(['draft', 'plan_proposed', 'plan_approved', 'rejected', 'paused']),
+  "plan": zod.string(),
+  "plan_source": zod.enum(['manual']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "approved_by": zod.string().nullable(),
+  "approved_at": zod.coerce.date().nullable(),
+  "paused_from": zod.string().nullable(),
+  "rejection_reason": zod.string()
+}).and(zod.object({
+  "history": zod.array(zod.object({
+  "id": zod.string(),
+  "actor_id": zod.string().describe('Clerk ID of the actor who performed the action.'),
+  "action": zod.string(),
+  "project_id": zod.string(),
+  "project_name": zod.string(),
+  "description": zod.string(),
+  "created_at": zod.string(),
+  "verified": zod.boolean()
+}))
+}))
+
+
+/**
+ * Owner or editor records a manually prepared plan; never impersonates Claude.
+ */
+export const SubmitOrchestrationPlanParams = zod.object({
+  "taskId": zod.coerce.string()
+})
+
+export const submitOrchestrationPlanBodyPlanMin = 20;
+export const submitOrchestrationPlanBodyPlanMax = 12000;
+
+
+
+export const SubmitOrchestrationPlanBody = zod.object({
+  "plan": zod.string().min(submitOrchestrationPlanBodyPlanMin).max(submitOrchestrationPlanBodyPlanMax),
+  "expected_status": zod.enum(['draft', 'rejected'])
+})
+
+export const SubmitOrchestrationPlanResponse = zod.object({
+  "id": zod.string(),
+  "project_id": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "status": zod.enum(['draft', 'plan_proposed', 'plan_approved', 'rejected', 'paused']),
+  "plan": zod.string(),
+  "plan_source": zod.enum(['manual']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "approved_by": zod.string().nullable(),
+  "approved_at": zod.coerce.date().nullable(),
+  "paused_from": zod.string().nullable(),
+  "rejection_reason": zod.string()
+})
+
+
+/**
+ * Only the authenticated room owner can approve or reject a plan. Approval does not dispatch an executor.
+ */
+export const DecideOrchestrationPlanParams = zod.object({
+  "taskId": zod.coerce.string()
+})
+
+export const decideOrchestrationPlanBodyReasonMax = 2000;
+
+
+
+export const DecideOrchestrationPlanBody = zod.object({
+  "decision": zod.enum(['approve', 'reject']),
+  "reason": zod.string().max(decideOrchestrationPlanBodyReasonMax).optional()
+})
+
+export const DecideOrchestrationPlanResponse = zod.object({
+  "id": zod.string(),
+  "project_id": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "status": zod.enum(['draft', 'plan_proposed', 'plan_approved', 'rejected', 'paused']),
+  "plan": zod.string(),
+  "plan_source": zod.enum(['manual']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "approved_by": zod.string().nullable(),
+  "approved_at": zod.coerce.date().nullable(),
+  "paused_from": zod.string().nullable(),
+  "rejection_reason": zod.string()
+})
+
+
+/**
+ * Owner pauses a manual task. No worker is installed.
+ */
+export const PauseOrchestrationTaskParams = zod.object({
+  "taskId": zod.coerce.string()
+})
+
+export const pauseOrchestrationTaskBodyReasonMin = 3;
+export const pauseOrchestrationTaskBodyReasonMax = 1000;
+
+
+
+export const PauseOrchestrationTaskBody = zod.object({
+  "reason": zod.string().min(pauseOrchestrationTaskBodyReasonMin).max(pauseOrchestrationTaskBodyReasonMax)
+})
+
+export const PauseOrchestrationTaskResponse = zod.object({
+  "id": zod.string(),
+  "project_id": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "status": zod.enum(['draft', 'plan_proposed', 'plan_approved', 'rejected', 'paused']),
+  "plan": zod.string(),
+  "plan_source": zod.enum(['manual']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "approved_by": zod.string().nullable(),
+  "approved_at": zod.coerce.date().nullable(),
+  "paused_from": zod.string().nullable(),
+  "rejection_reason": zod.string()
+})
+
+
+/**
+ * Owner resumes the manual task to its previous state.
+ */
+export const ResumeOrchestrationTaskParams = zod.object({
+  "taskId": zod.coerce.string()
+})
+
+export const ResumeOrchestrationTaskResponse = zod.object({
+  "id": zod.string(),
+  "project_id": zod.string(),
+  "title": zod.string(),
+  "requirement": zod.string(),
+  "status": zod.enum(['draft', 'plan_proposed', 'plan_approved', 'rejected', 'paused']),
+  "plan": zod.string(),
+  "plan_source": zod.enum(['manual']),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "approved_by": zod.string().nullable(),
+  "approved_at": zod.coerce.date().nullable(),
+  "paused_from": zod.string().nullable(),
+  "rejection_reason": zod.string()
+})
+
+
 export const GetSystemStatusResponse = zod.object({
   "database": zod.enum(['connected', 'unavailable']),
   "dbName": zod.string(),

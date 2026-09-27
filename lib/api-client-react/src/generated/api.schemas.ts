@@ -188,6 +188,104 @@ export interface Activity {
   verified: boolean;
 }
 
+export type OrchestrationTaskStatus = typeof OrchestrationTaskStatus[keyof typeof OrchestrationTaskStatus];
+
+
+export const OrchestrationTaskStatus = {
+  draft: 'draft',
+  plan_proposed: 'plan_proposed',
+  plan_approved: 'plan_approved',
+  rejected: 'rejected',
+  paused: 'paused',
+} as const;
+
+export interface OrchestrationTaskInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  project_id: string;
+  /**
+     * @minLength 3
+     * @maxLength 160
+     */
+  title: string;
+  /**
+     * @minLength 10
+     * @maxLength 5000
+     */
+  requirement: string;
+}
+
+export type OrchestrationPlanInputExpectedStatus = typeof OrchestrationPlanInputExpectedStatus[keyof typeof OrchestrationPlanInputExpectedStatus];
+
+
+export const OrchestrationPlanInputExpectedStatus = {
+  draft: 'draft',
+  rejected: 'rejected',
+} as const;
+
+export interface OrchestrationPlanInput {
+  /**
+     * @minLength 20
+     * @maxLength 12000
+     */
+  plan: string;
+  expected_status: OrchestrationPlanInputExpectedStatus;
+}
+
+export type OrchestrationDecisionInputDecision = typeof OrchestrationDecisionInputDecision[keyof typeof OrchestrationDecisionInputDecision];
+
+
+export const OrchestrationDecisionInputDecision = {
+  approve: 'approve',
+  reject: 'reject',
+} as const;
+
+export interface OrchestrationDecisionInput {
+  decision: OrchestrationDecisionInputDecision;
+  /** @maxLength 2000 */
+  reason?: string;
+}
+
+export interface OrchestrationPauseInput {
+  /**
+     * @minLength 3
+     * @maxLength 1000
+     */
+  reason: string;
+}
+
+export type OrchestrationTaskPlanSource = typeof OrchestrationTaskPlanSource[keyof typeof OrchestrationTaskPlanSource];
+
+
+export const OrchestrationTaskPlanSource = {
+  manual: 'manual',
+} as const;
+
+export interface OrchestrationTask {
+  id: string;
+  project_id: string;
+  title: string;
+  requirement: string;
+  status: OrchestrationTaskStatus;
+  plan: string;
+  plan_source: OrchestrationTaskPlanSource;
+  created_at: string;
+  updated_at: string;
+  /** @nullable */
+  approved_by: string | null;
+  /** @nullable */
+  approved_at: string | null;
+  /** @nullable */
+  paused_from: string | null;
+  rejection_reason: string;
+}
+
+export type OrchestrationTaskDetail = OrchestrationTask & {
+  history: Activity[];
+};
+
 export type IntegrationStatusStatus = typeof IntegrationStatusStatus[keyof typeof IntegrationStatusStatus];
 
 
