@@ -63,10 +63,23 @@ settings exist, email is not activated.
 Public: `GET /api/healthz`, `GET /api/system/status`,
 signed `POST /api/webhooks/github`.
 Authenticated using Clerk cookies:
+- `GET /api/rooms`, `GET /api/operations`
+- `POST /api/emergency-stop`, `POST /api/emergency-resume`
+- `GET /api/members`, `PUT /api/members`, `DELETE /api/members/:userId`
 - `GET /api/projects`, `POST /api/projects`
 - `GET /api/projects/:id`, `PATCH /api/projects/:id`, `DELETE /api/projects/:id`
 - `PUT /api/projects/:id/status`
 - `GET /api/dashboard`, `GET /api/audit`
+- `GET /api/orchestration/tasks`, `POST /api/orchestration/tasks`
+- `GET /api/orchestration/tasks/:taskId`
+- `PUT /api/orchestration/tasks/:taskId/plan`
+- `PUT /api/orchestration/tasks/:taskId/decision`
+- `PUT /api/orchestration/tasks/:taskId/pause`
+- `PUT /api/orchestration/tasks/:taskId/resume`
+
+Orchestration tasks are manual records. Plans must be entered by a person;
+only the room owner can approve or reject them. Approval never calls a model,
+starts a worker, creates a branch or PR, or merges code.
 
 Exact schemas are in `lib/api-spec/openapi.yaml`. Status requests include both the
 desired status and expected_status; conflicting updates return 409.
@@ -80,8 +93,8 @@ desired status and expected_status; conflicting updates return 409.
   deletion retaining history, not a privacy erasure endpoint.
 - The room owner can activate `/api/emergency-stop` and clear it with
   `/api/emergency-resume`. The state is stored per room in MongoDB and blocks
-  new project/member mutations while stopped; signed activation/clear events
-  appear in `/api/audit`. Reads continue. Requests already in flight may finish.
+  new project, member, and task mutations while stopped; signed activation/clear
+  events appear in `/api/audit`. Reads continue. Requests already in flight may finish.
 - Only the room owner can approve the final transition from `awaiting_review`
   to `merged`; a reviewer may resume a previously approved paused project.
   This is an audit decision,
@@ -89,4 +102,7 @@ desired status and expected_status; conflicting updates return 409.
   cannot record that final decision.
 - There is no autonomous task runner or sleep mode. Never assume stopping a
   room can halt external services or code running outside this application.
+- MongoDB connection readiness does not prove task writes survive a restart.
+  Verify this with a separately approved test database before relying on that
+  behavior; do not create test records in production without explicit approval.
 - This first release is not a certified compliance system or autonomous agent.
