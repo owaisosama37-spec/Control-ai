@@ -22,7 +22,7 @@ timeoutMs = 20000
 [userenv]
 
 [userenv.shared]
-GITHUB_REPO = "owaisosama37-spec/Control-ai"
+GITHUB_REPO = "owaisosama37/starfruit-control-room"
 RESEND_CONNECTOR_ENABLED = "true"
 
 [userenv.development]
